@@ -2,7 +2,7 @@ const modal = document.getElementById('modalLogout');
 const openBtn = document.getElementById('btnOpenLogout');
 const closeBtn = document.getElementById('confirmNo');
 
-// Abrir al hacer clic en Cerrar Sesión
+// Abrir al hacer clic en Cerrar sesion
 openBtn.onclick = () => {
     modal.style.display = 'flex';
 };
