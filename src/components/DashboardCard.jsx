@@ -1,8 +1,14 @@
-export default function DashboardCard({ icon: Icon, title, description, accent = "bg-plum-100 text-plum-700" }) {
+export default function DashboardCard({
+  icon: Icon,
+  title,
+  description,
+  accent = "bg-plum-100 text-plum-700",
+  onClick,
+}) {
   return (
     <button
       type="button"
-      onClick={() => window.alert("Modulo en desarrollo")}
+      onClick={onClick || (() => window.alert("Modulo en desarrollo"))}
       className="group flex min-h-48 flex-col rounded-3xl border-2 border-plum-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-1 hover:border-lotus-400 hover:shadow-soft sm:min-h-52 sm:p-5"
       aria-label={`${title}. ${description}`}
     >
