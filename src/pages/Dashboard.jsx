@@ -16,6 +16,7 @@ const modules = [
     description: "Registra tus medicinas y controla tus tomas.",
     icon: Pill,
     accent: "bg-lotus-100 text-lotus-500",
+    path: "/dashboard/medicamentos",
   },
   {
     title: "Citas medicas",
@@ -47,6 +48,7 @@ const modules = [
     description: "Administra tus preferencias y cuenta.",
     icon: Settings,
     accent: "bg-lotus-100 text-plum-700",
+    path: "/dashboard/configuracion",
   },
 ];
 
@@ -75,6 +77,7 @@ export default function Dashboard() {
             <DashboardCard
               key={module.title}
               {...module}
+              // Forzamos el onClick para que salte directo si encuentra la ruta 'path'
               onClick={module.path ? () => navigate(module.path) : undefined}
             />
           ))}
