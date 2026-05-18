@@ -30,6 +30,7 @@ const modules = [
     description: "Guarda dietas y alimentos recomendados.",
     icon: Apple,
     accent: "bg-mint-100 text-mint-500",
+    path: "/dashboard/comidas",
   },
   {
     title: "Ejercicios",

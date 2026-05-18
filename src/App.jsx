@@ -7,6 +7,7 @@ import Medicines from "./pages/Medicines";
 import Settings from "./pages/Settings";
 import Exercise from "./pages/Exercise";
 import ForgotPassword from "./pages/ForgotPassword";
+import Foods from "./pages/Foods";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/dashboard/citas-medicas" element={<Appointments />} />
       <Route path="/dashboard/medicamentos" element={<Medicines />} />
       <Route path="/dashboard/configuracion" element={<Settings />} />
+      <Route path="/dashboard/comidas" element={<Foods />} />
       <Route path="/exercise" element={<Exercise />} />
 
 
