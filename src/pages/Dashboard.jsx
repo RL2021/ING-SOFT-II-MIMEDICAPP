@@ -36,6 +36,7 @@ const modules = [
     description: "Registra rutinas y actividades fisicas.",
     icon: Dumbbell,
     accent: "bg-plum-100 text-plum-700",
+    path: "/exercise",
   },
   {
     title: "Reportes",
