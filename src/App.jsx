@@ -20,7 +20,7 @@ export default function App() {
       <Route path="/dashboard/citas-medicas" element={<Appointments />} />
       <Route path="/dashboard/medicamentos" element={<Medicines />} />
       <Route path="/dashboard/configuracion" element={<Settings />} />
-      <Route path="/dashboard/comidas" element={<Foods />} />
+      <Route path="/dashboard/foods" element={<Foods />} />
       <Route path="/exercise" element={<Exercise />} />
 
 
