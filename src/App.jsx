@@ -6,12 +6,14 @@ import Register from "./pages/Register";
 import Medicines from "./pages/Medicines";
 import Settings from "./pages/Settings";
 import Exercise from "./pages/Exercise";
+import ForgotPassword from "./pages/ForgotPassword";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot_password" element={<ForgotPassword />} />
       <Route path="/register" element={<Register />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/dashboard/citas-medicas" element={<Appointments />} />

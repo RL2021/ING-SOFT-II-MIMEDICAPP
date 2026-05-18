@@ -32,6 +32,14 @@ export default function Login() {
           placeholder="Ingresa tu contrasena"
           autoComplete="current-password"
         />
+        <div className="-mt-2 text-right">
+          <Link
+            to="/forgot_password"
+            className="text-base font-semibold text-lotus-500 underline-offset-4 hover:underline"
+          >
+            ¿Olvidaste tu contrasena?
+          </Link>
+        </div>
         <div className="pt-2">
           <PrimaryButton type="submit">Iniciar sesion</PrimaryButton>
         </div>
@@ -39,7 +47,10 @@ export default function Login() {
 
       <p className="mt-7 text-center text-lg font-semibold text-plum-600">
         ¿No tienes una cuenta?{" "}
-        <Link className="font-black text-lotus-500 underline-offset-4 hover:underline" to="/register">
+        <Link
+          className="font-black text-lotus-500 underline-offset-4 hover:underline"
+          to="/register"
+        >
           Registrate
         </Link>
       </p>
