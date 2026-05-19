@@ -1,56 +1,84 @@
 // src/context/AuthContext.jsx
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useEffect, useState } from "react"
+import { supabase } from "../lib/supabase"
 
-const AuthContext = createContext({});
+const AuthContext = createContext({})
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+	const [user, setUser] = useState(null)
+	const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // 1. Check active sessions on initial page load
-    const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
+	useEffect(() => {
+		// 1. Check active sessions on initial page load
+		const initializeAuth = async () => {
+			const {
+				data: { session },
+			} = await supabase.auth.getSession()
+			setUser(session?.user ?? null)
+			setLoading(false)
+		}
 
-    initializeAuth();
+		initializeAuth()
 
-    // 2. Listen for auth changes (login, signout, token refresh, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+		// 2. Listen for auth changes (login, signout, token refresh, etc.)
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((_event, session) => {
+			setUser(session?.user ?? null)
+			setLoading(false)
+		})
 
-    // Clean up the listener when the component unmounts
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+		// Clean up the listener when the component unmounts
+		return () => {
+			subscription.unsubscribe()
+		}
+	}, [])
 
-  // Wrap Supabase auth functions for easy use across the app
-  const signUp = (email, password) => supabase.auth.signUp({ email, password });
-  const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password });
-  const signOut = () => supabase.auth.signOut();
+	// Wrap Supabase auth functions for easy use across the app
+	const signUp = async (name, birthDate, phone, email, password) => {
+		const { data, error: authError } = await supabase.auth.signUp({
+			email,
+			password,
+		})
+		if (authError) {
+			console.error("Auth Error:", authError.message)
+			return
+		}
 
-  const value = {
-    user,
-    signUp,
-    signIn,
-    signOut,
-    loading
-  };
+		const userId = data?.user?.id
+		const { error: dbError } = await supabase.from("users").insert({
+			id: userId,
+			name: name,
+			birth_date: birthDate,
+			phone: phone,
+			email: email,
+		})
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children} 
-    </AuthContext.Provider>
-  );
-};
+		if (dbError) {
+			console.error("Database Error:", dbError.message)
+			return
+		}
+	}
+	const signIn = (email, password) =>
+		supabase.auth.signInWithPassword({ email, password })
+	const signOut = () => supabase.auth.signOut()
+
+	const value = {
+		user,
+		signUp,
+		signIn,
+		signOut,
+		loading,
+	}
+
+	return (
+		<AuthContext.Provider value={value}>
+			{!loading && children}
+		</AuthContext.Provider>
+	)
+}
 
 // Custom hook for easy consumption of context
 export const useAuth = () => {
-  return useContext(AuthContext);
-};
+	return useContext(AuthContext)
+}
