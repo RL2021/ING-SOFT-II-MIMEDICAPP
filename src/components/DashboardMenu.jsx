@@ -25,7 +25,14 @@ export default function DashboardMenu({ userName = "Usuario MIMEDICAPP", onLogou
     <header className="sticky top-0 z-10 border-b border-plum-200 bg-plum-600 text-white shadow-sm">
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:flex lg:flex-row lg:items-center lg:justify-between lg:px-10">
         <div className="relative flex items-center justify-start">
-          <BrandMark compact light />
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            aria-label="Ir al dashboard principal"
+            className="rounded-2xl text-left transition hover:opacity-90 focus-visible:outline focus-visible:outline-4 focus-visible:outline-lotus-400/40 focus-visible:outline-offset-4"
+          >
+            <BrandMark compact light />
+          </button>
           <button
             type="button"
             onClick={handleLogout}
