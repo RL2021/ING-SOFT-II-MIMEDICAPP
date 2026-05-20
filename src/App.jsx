@@ -8,6 +8,7 @@ import Settings from "./pages/Settings";
 import Exercise from "./pages/Exercise";
 import ForgotPassword from "./pages/ForgotPassword";
 import Foods from "./pages/Foods";
+import Profile from "./pages/Profile";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
       <Route path="/dashboard/medicamentos" element={<Medicines />} />
       <Route path="/dashboard/configuracion" element={<Settings />} />
       <Route path="/dashboard/foods" element={<Foods />} />
+      <Route path="/dashboard/perfil" element={<Profile />} />
       <Route path="/exercise" element={<Exercise />} />
 
 

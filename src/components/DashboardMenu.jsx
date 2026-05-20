@@ -1,13 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, LogOut, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BrandMark from "./BrandMark";
 
-export default function DashboardMenu({ userName = "Usuario MIMEDICAPP", onLogout }) {
+export default function DashboardMenu({ onLogout }) {
   const navigate = useNavigate();
   const [showNotifPanel, setShowNotifPanel] = useState(false);
 
-  const notificationsEnabled = localStorage.getItem("notificationsEnabled") === "true";
+  const [userName, setUserName] = useState("Usuario MIMEDICAPP");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("userProfile");
+    if (stored) {
+      const profile = JSON.parse(stored);
+      if (profile.nombre) setUserName(profile.nombre);
+    }
+  }, []);
+
+  const notificationsEnabled =
+    localStorage.getItem("notificationsEnabled") === "true";
   const medicines = notificationsEnabled
     ? JSON.parse(localStorage.getItem("misMedicinas") || "[]")
     : [];
@@ -71,7 +82,10 @@ export default function DashboardMenu({ userName = "Usuario MIMEDICAPP", onLogou
                     Las notificaciones están desactivadas.{" "}
                     <button
                       type="button"
-                      onClick={() => { setShowNotifPanel(false); navigate("/dashboard/configuracion"); }}
+                      onClick={() => {
+                        setShowNotifPanel(false);
+                        navigate("/dashboard/configuracion");
+                      }}
                       className="font-black text-plum-700 underline"
                     >
                       Activar
@@ -90,7 +104,9 @@ export default function DashboardMenu({ userName = "Usuario MIMEDICAPP", onLogou
                       >
                         <Bell className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" />
                         <div>
-                          <p className="text-sm font-black text-plum-800">Tomar {m.nombre}</p>
+                          <p className="text-sm font-black text-plum-800">
+                            Tomar {m.nombre}
+                          </p>
                           <p className="text-xs font-medium text-plum-500">
                             {m.dosis} · {m.frecuencia}
                             {m.toma ? ` · ${m.toma}` : ""}
@@ -104,13 +120,20 @@ export default function DashboardMenu({ userName = "Usuario MIMEDICAPP", onLogou
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/12 px-4 py-3 text-center sm:text-left">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/perfil")}
+            className="flex items-center justify-center gap-3 rounded-2xl bg-white/12 px-4 py-3 text-center sm:text-left transition hover:bg-white/20 cursor-pointer"
+            aria-label="Ir a mi perfil"
+          >
             <UserRound className="h-7 w-7 text-lotus-400" aria-hidden="true" />
             <div>
-              <p className="text-sm font-bold uppercase tracking-wide text-plum-100">Bienvenido(a)</p>
+              <p className="text-sm font-bold uppercase tracking-wide text-plum-100">
+                Bienvenido(a)
+              </p>
               <p className="text-lg font-black">{userName}</p>
             </div>
-          </div>
+          </button>
 
           <button
             type="button"
