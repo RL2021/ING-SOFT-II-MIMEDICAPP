@@ -1,91 +1,132 @@
 import {
   Bell,
   CalendarClock,
+  CheckCircle2,
   ChevronLeft,
   Clock3,
+  Edit3,
   MapPin,
   NotebookText,
   Plus,
-  Search,
   Stethoscope,
+  Trash2,
   UserRound,
+  X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardMenu from "../components/DashboardMenu";
 
-const appointmentSamples = [
-  {
-    id: "apt-001",
-    doctor_name: "Dra. Valeria Campos",
-    specialty: "Cardiologia",
-    location: "Clinica San Gabriel, consultorio 304",
-    appointment_date: "2026-05-20T09:30:00",
-    notes: "Llevar ultimos analisis y control de presion.",
-    has_reminder: true,
-  },
-  {
-    id: "apt-002",
-    doctor_name: "Dr. Miguel Torres",
-    specialty: "Medicina general",
-    location: "Centro Medico Miraflores",
-    appointment_date: "2026-05-24T16:00:00",
-    notes: "Revision de resultados y ajustes de tratamiento.",
-    has_reminder: false,
-  },
-  {
-    id: "apt-003",
-    doctor_name: "Dra. Ana Salazar",
-    specialty: "Nutricion",
-    location: "Consulta virtual",
-    appointment_date: "2026-06-02T11:15:00",
-    notes: "Seguimiento del plan alimenticio semanal.",
-    has_reminder: true,
-  },
-];
+const STORAGE_KEY = "mimedicapp_appointments_v2";
+const LEGACY_SAMPLE_IDS = ["apt-001", "apt-002", "apt-003"];
 
-const formatAppointmentDate = (value) =>
-  new Intl.DateTimeFormat("es-PE", {
+const createEmptyForm = () => ({
+  doctor_name: "",
+  specialty: "",
+  location: "",
+  appointment_date: "",
+  notes: "",
+  has_reminder: true,
+});
+
+const sortByAppointmentDate = (appointments) =>
+  [...appointments].sort((firstAppointment, secondAppointment) => {
+    return new Date(firstAppointment.appointment_date) - new Date(secondAppointment.appointment_date);
+  });
+
+const formatAppointmentDate = (value) => {
+  if (!value) {
+    return "Fecha pendiente";
+  }
+
+  return new Intl.DateTimeFormat("es-PE", {
     weekday: "short",
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+};
 
 export default function Appointments() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState({
-    doctor_name: "",
-    specialty: "",
-    location: "",
-    appointment_date: "",
-    notes: "",
-    has_reminder: true,
-  });
+  const [appointments, setAppointments] = useState(() => {
+    const storedAppointments = window.localStorage.getItem(STORAGE_KEY);
 
-  const filteredAppointments = useMemo(() => {
-    const normalizedTerm = searchTerm.trim().toLowerCase();
-
-    if (!normalizedTerm) {
-      return appointmentSamples;
+    if (!storedAppointments) {
+      return [];
     }
 
-    return appointmentSamples.filter((appointment) =>
-      [appointment.doctor_name, appointment.specialty, appointment.location]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedTerm),
-    );
-  }, [searchTerm]);
+    try {
+      const parsedAppointments = JSON.parse(storedAppointments);
 
-  const nextAppointment = appointmentSamples[0];
-  const remindersCount = appointmentSamples.filter((appointment) => appointment.has_reminder).length;
+      if (!Array.isArray(parsedAppointments)) {
+        return [];
+      }
+
+      return parsedAppointments
+        .filter((appointment) => !LEGACY_SAMPLE_IDS.includes(appointment.id))
+        .map((appointment) => ({
+          ...appointment,
+          is_completed: Boolean(appointment.is_completed),
+        }));
+    } catch {
+      return [];
+    }
+  });
+  const [formData, setFormData] = useState(createEmptyForm);
+  const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+  }, [appointments]);
+
+  const pendingAppointments = appointments.filter((appointment) => !appointment.is_completed);
+  const completedAppointmentsCount = appointments.filter((appointment) => appointment.is_completed).length;
+  const nextAppointment = sortByAppointmentDate(pendingAppointments)[0];
+  const remindersCount = pendingAppointments.filter((appointment) => appointment.has_reminder).length;
+  const sortedAppointments = useMemo(() => sortByAppointmentDate(appointments), [appointments]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    window.alert("Formulario listo para conectar al backend de citas medicas");
+
+    const appointmentData = {
+      doctor_name: formData.doctor_name.trim(),
+      specialty: formData.specialty.trim(),
+      location: formData.location.trim(),
+      appointment_date: formData.appointment_date,
+      notes: formData.notes.trim(),
+      has_reminder: formData.has_reminder,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (editingAppointmentId) {
+      setAppointments((currentAppointments) =>
+        sortByAppointmentDate(
+          currentAppointments.map((appointment) =>
+            appointment.id === editingAppointmentId
+              ? {
+                  ...appointment,
+                  ...appointmentData,
+                }
+              : appointment,
+          ),
+        ),
+      );
+      setEditingAppointmentId(null);
+      setFormData(createEmptyForm());
+      return;
+    }
+
+    const newAppointment = {
+      id: `apt-${Date.now()}`,
+      ...appointmentData,
+      is_completed: false,
+      created_at: new Date().toISOString(),
+    };
+
+    setAppointments((currentAppointments) => sortByAppointmentDate([...currentAppointments, newAppointment]));
+    setFormData(createEmptyForm());
   };
 
   const updateField = (field, value) => {
@@ -93,6 +134,49 @@ export default function Appointments() {
       ...currentData,
       [field]: value,
     }));
+  };
+
+  const handleEditAppointment = (appointment) => {
+    setEditingAppointmentId(appointment.id);
+    setFormData({
+      doctor_name: appointment.doctor_name,
+      specialty: appointment.specialty,
+      location: appointment.location,
+      appointment_date: appointment.appointment_date,
+      notes: appointment.notes,
+      has_reminder: appointment.has_reminder,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingAppointmentId(null);
+    setFormData(createEmptyForm());
+  };
+
+  const deleteAppointment = (appointmentId) => {
+    setAppointments((currentAppointments) =>
+      currentAppointments.filter((appointment) => appointment.id !== appointmentId),
+    );
+
+    if (editingAppointmentId === appointmentId) {
+      cancelEdit();
+    }
+  };
+
+  const toggleCompletedAppointment = (appointmentId) => {
+    setAppointments((currentAppointments) =>
+      sortByAppointmentDate(
+        currentAppointments.map((appointment) =>
+          appointment.id === appointmentId
+            ? {
+                ...appointment,
+                is_completed: !appointment.is_completed,
+                updated_at: new Date().toISOString(),
+              }
+            : appointment,
+        ),
+      ),
+    );
   };
 
   return (
@@ -119,23 +203,24 @@ export default function Appointments() {
                 </p>
                 <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Agenda de consultas</h1>
                 <p className="mt-3 max-w-2xl text-base font-medium leading-relaxed text-plum-600 sm:text-lg">
-                  Organiza tus doctores, horarios, ubicaciones y recordatorios desde una sola vista.
+                  Organiza tus doctores, horarios, ubicaciones y recordatorios.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:min-w-64">
                 <div className="rounded-3xl bg-plum-50 p-4 ring-1 ring-plum-100">
-                  <p className="text-3xl font-black text-plum-800">{appointmentSamples.length}</p>
-                  <p className="text-sm font-bold text-plum-500">Citas activas</p>
+                  <p className="text-3xl font-black text-plum-800">{pendingAppointments.length}</p>
+                  <p className="text-sm font-bold text-plum-500">Pendientes</p>
                 </div>
                 <div className="rounded-3xl bg-lotus-100 p-4">
-                  <p className="text-3xl font-black text-lotus-500">{remindersCount}</p>
-                  <p className="text-sm font-bold text-plum-600">Recordatorios</p>
+                  <p className="text-3xl font-black text-lotus-500">{completedAppointmentsCount}</p>
+                  <p className="text-sm font-bold text-plum-600">Asistidas</p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-7 rounded-3xl bg-plum-600 p-5 text-white">
+            {nextAppointment && (
+              <div className="mt-7 rounded-3xl bg-plum-600 p-5 text-white">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-bold uppercase tracking-wide text-plum-100">Proxima cita</p>
@@ -154,23 +239,36 @@ export default function Appointments() {
                 </div>
               </div>
             </div>
+            )}
           </section>
 
           <form className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8" onSubmit={handleSubmit}>
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase tracking-wide text-lotus-500">Nueva cita</p>
-                <h2 className="mt-1 text-2xl font-black text-plum-800">Registrar atencion</h2>
+                <p className="text-sm font-black uppercase tracking-wide text-lotus-500">
+                  {editingAppointmentId ? "Editar cita" : "Nueva cita"}
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-plum-800">
+                  {editingAppointmentId ? "Actualizar atencion" : "Registrar atencion"}
+                </h2>
               </div>
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-lotus-100 text-lotus-500">
-                <Plus className="h-6 w-6" aria-hidden="true" />
-              </span>
+              {editingAppointmentId && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  aria-label="Cancelar edicion"
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-plum-100 text-plum-700 transition hover:bg-plum-200"
+                >
+                  <X className="h-6 w-6" aria-hidden="true" />
+                </button>
+              )}
             </div>
 
             <div className="grid gap-4">
               <label className="grid gap-2 text-sm font-black text-plum-700">
                 Doctor
                 <input
+                  required
                   value={formData.doctor_name}
                   onChange={(event) => updateField("doctor_name", event.target.value)}
                   className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
@@ -182,6 +280,7 @@ export default function Appointments() {
                 <label className="grid gap-2 text-sm font-black text-plum-700">
                   Especialidad
                   <input
+                    required
                     value={formData.specialty}
                     onChange={(event) => updateField("specialty", event.target.value)}
                     className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
@@ -192,6 +291,7 @@ export default function Appointments() {
                 <label className="grid gap-2 text-sm font-black text-plum-700">
                   Fecha y hora
                   <input
+                    required
                     type="datetime-local"
                     value={formData.appointment_date}
                     onChange={(event) => updateField("appointment_date", event.target.value)}
@@ -203,6 +303,7 @@ export default function Appointments() {
               <label className="grid gap-2 text-sm font-black text-plum-700">
                 Ubicacion
                 <input
+                  required
                   value={formData.location}
                   onChange={(event) => updateField("location", event.target.value)}
                   className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
@@ -237,47 +338,53 @@ export default function Appointments() {
                 type="submit"
                 className="mt-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-lotus-500 px-5 text-base font-black text-white transition hover:bg-lotus-400"
               >
-                <Plus className="h-5 w-5" aria-hidden="true" />
-                Guardar cita
+                {editingAppointmentId ? (
+                  <Edit3 className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                )}
+                {editingAppointmentId ? "Actualizar cita" : "Guardar cita"}
               </button>
             </div>
           </form>
         </div>
 
         <section className="mt-6 rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
             <div>
               <p className="text-sm font-black uppercase tracking-wide text-skysoft-500">Listado</p>
               <h2 className="mt-1 text-2xl font-black text-plum-800">Tus citas programadas</h2>
             </div>
-
-            <label className="relative block lg:w-80">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-plum-500" aria-hidden="true" />
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                className="min-h-12 w-full rounded-full border-2 border-plum-100 bg-plum-50 py-2 pl-12 pr-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
-                placeholder="Buscar cita"
-              />
-            </label>
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {filteredAppointments.map((appointment) => (
+            {sortedAppointments.map((appointment) => (
               <article
                 key={appointment.id}
-                className="flex min-h-72 flex-col rounded-3xl border-2 border-plum-100 bg-white p-5 shadow-sm transition hover:border-skysoft-500 hover:shadow-soft"
+                className={`flex min-h-72 flex-col rounded-3xl border-2 p-5 shadow-sm transition hover:shadow-soft ${
+                  appointment.is_completed
+                    ? "border-mint-100 bg-mint-100/50 hover:border-mint-500"
+                    : "border-plum-100 bg-white hover:border-skysoft-500"
+                }`}
               >
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-skysoft-100 text-skysoft-500">
                     <Stethoscope className="h-8 w-8" aria-hidden="true" />
                   </span>
-                  {appointment.has_reminder && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-lotus-100 px-3 py-2 text-xs font-black text-lotus-500">
-                      <Bell className="h-4 w-4" aria-hidden="true" />
-                      Aviso
-                    </span>
-                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {appointment.is_completed && (
+                      <span className="inline-flex items-center gap-2 rounded-full bg-mint-100 px-3 py-2 text-xs font-black text-mint-500">
+                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                        Asistida
+                      </span>
+                    )}
+                    {appointment.has_reminder && !appointment.is_completed && (
+                      <span className="inline-flex items-center gap-2 rounded-full bg-lotus-100 px-3 py-2 text-xs font-black text-lotus-500">
+                        <Bell className="h-4 w-4" aria-hidden="true" />
+                        Aviso
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <h3 className="text-xl font-black leading-tight text-plum-800">{appointment.doctor_name}</h3>
@@ -295,14 +402,50 @@ export default function Appointments() {
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
                     {appointment.location}
                   </p>
-                  <p className="flex items-start gap-2">
-                    <NotebookText className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
-                    {appointment.notes}
-                  </p>
+                  {appointment.notes && (
+                    <p className="flex items-start gap-2">
+                      <NotebookText className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
+                      {appointment.notes}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => handleEditAppointment(appointment)}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-plum-50 px-3 text-sm font-black text-plum-700 transition hover:bg-plum-100"
+                  >
+                    <Edit3 className="h-4 w-4" aria-hidden="true" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleCompletedAppointment(appointment.id)}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-mint-100 px-3 text-sm font-black text-mint-500 transition hover:bg-mint-500 hover:text-white"
+                  >
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    {appointment.is_completed ? "Reabrir" : "Asistida"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteAppointment(appointment.id)}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-lotus-100 px-3 text-sm font-black text-lotus-500 transition hover:bg-lotus-500 hover:text-white"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Eliminar
+                  </button>
                 </div>
               </article>
             ))}
           </div>
+
+          {sortedAppointments.length === 0 && (
+            <div className="mt-6 rounded-3xl border-2 border-dashed border-plum-100 bg-plum-50 p-8 text-center">
+              <p className="text-lg font-black text-plum-800">No hay citas para mostrar</p>
+              <p className="mt-2 font-semibold text-plum-600">Registra una nueva cita para verla en tu agenda.</p>
+            </div>
+          )}
         </section>
       </section>
     </main>
