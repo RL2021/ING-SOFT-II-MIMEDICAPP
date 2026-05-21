@@ -1,0 +1,150 @@
+# Documentation
+Supabase docs
+https://supabase.com/docs/reference/javascript/select
+
+---
+
+## Table `appointments`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `user_id` | `uuid` |  |
+| `doctor_name` | `text` |  |
+| `specialty` | `text` |  Nullable |
+| `location` | `text` |  Nullable |
+| `appointment_date` | `timestamptz` |  |
+| `notes` | `text` |  Nullable |
+| `has_reminder` | `bool` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `exercises`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `user_id` | `uuid` |  |
+| `name` | `text` |  |
+| `description` | `text` |  Nullable |
+| `scheduled_at` | `timestamptz` |  Nullable |
+| `is_active` | `bool` |  |
+| `is_completed` | `bool` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `foods`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `user_id` | `uuid` |  |
+| `name` | `text` |  |
+| `detail` | `text` |  Nullable |
+| `recommended` | `bool` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `medicines`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `user_id` | `uuid` |  |
+| `name` | `text` |  |
+| `dosage` | `text` |  Nullable |
+| `first_take` | `timestamptz` |  Nullable |
+| `next_take` | `timestamptz` |  Nullable |
+| `frequency` | `text` |  Nullable |
+| `is_active` | `bool` |  |
+| `is_taken` | `bool` |  |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+## Table `notifications`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `int8` | Primary Identity |
+| `user_id` | `uuid` |  |
+| `title` | `text` |  |
+| `message` | `text` |  Nullable |
+| `type` | `notification_type_enum` |  |
+| `scheduled_for` | `timestamptz` |  Nullable |
+| `is_read` | `bool` |  |
+| `created_at` | `timestamptz` |  |
+| `exercise_id` | `int8` |  Nullable |
+| `medicine_id` | `int8` |  Nullable |
+| `appointment_id` | `int8` |  Nullable |
+
+## Table `users`
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `id` | `uuid` | Primary |
+| `name` | `text` |  |
+| `birth_date` | `date` |  Nullable |
+| `phone` | `text` |  Nullable |
+| `email` | `text` |  Unique |
+| `created_at` | `timestamptz` |  |
+| `updated_at` | `timestamptz` |  |
+
+---
+
+## Table `users` (supabase)
+
+Auth: Stores user login data within a secure schema.
+
+### Columns
+
+| Name | Type | Constraints |
+|------|------|-------------|
+| `instance_id` | `uuid` |  Nullable |
+| `id` | `uuid` | Primary |
+| `aud` | `varchar` |  Nullable |
+| `role` | `varchar` |  Nullable |
+| `email` | `varchar` |  Nullable |
+| `encrypted_password` | `varchar` |  Nullable |
+| `email_confirmed_at` | `timestamptz` |  Nullable |
+| `invited_at` | `timestamptz` |  Nullable |
+| `confirmation_token` | `varchar` |  Nullable |
+| `confirmation_sent_at` | `timestamptz` |  Nullable |
+| `recovery_token` | `varchar` |  Nullable |
+| `recovery_sent_at` | `timestamptz` |  Nullable |
+| `email_change_token_new` | `varchar` |  Nullable |
+| `email_change` | `varchar` |  Nullable |
+| `email_change_sent_at` | `timestamptz` |  Nullable |
+| `last_sign_in_at` | `timestamptz` |  Nullable |
+| `raw_app_meta_data` | `jsonb` |  Nullable |
+| `raw_user_meta_data` | `jsonb` |  Nullable |
+| `is_super_admin` | `bool` |  Nullable |
+| `created_at` | `timestamptz` |  Nullable |
+| `updated_at` | `timestamptz` |  Nullable |
+| `phone` | `text` |  Nullable Unique |
+| `phone_confirmed_at` | `timestamptz` |  Nullable |
+| `phone_change` | `text` |  Nullable |
+| `phone_change_token` | `varchar` |  Nullable |
+| `phone_change_sent_at` | `timestamptz` |  Nullable |
+| `confirmed_at` | `timestamptz` |  Nullable |
+| `email_change_token_current` | `varchar` |  Nullable |
+| `email_change_confirm_status` | `int2` |  Nullable |
+| `banned_until` | `timestamptz` |  Nullable |
+| `reauthentication_token` | `varchar` |  Nullable |
+| `reauthentication_sent_at` | `timestamptz` |  Nullable |
+| `is_sso_user` | `bool` |  |
+| `deleted_at` | `timestamptz` |  Nullable |
+| `is_anonymous` | `bool` |  |
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://casual-effects.com/markdeep/latest/markdeep.min.js" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
