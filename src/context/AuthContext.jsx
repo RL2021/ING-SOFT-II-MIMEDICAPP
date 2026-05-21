@@ -1,4 +1,3 @@
-// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
@@ -9,7 +8,7 @@ export const AuthProvider = ({ children }) => {
 	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
-		// 1. Check active sessions on initial page load
+		// Check active sessions on initial page load
 		const initializeAuth = async () => {
 			const {
 				data: { session },
@@ -20,21 +19,21 @@ export const AuthProvider = ({ children }) => {
 
 		initializeAuth()
 
-		// 2. Listen for auth changes (login, signout, token refresh, etc.)
+		// Listen for auth events
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange((_event, session) => {
+		} = supabase.auth.onAuthStateChange((event, session) => {
 			setUser(session?.user ?? null)
 			setLoading(false)
 		})
 
-		// Clean up the listener when the component unmounts
+		// Clean up listener when the component unmounts
 		return () => {
 			subscription.unsubscribe()
 		}
 	}, [])
 
-	// Wrap Supabase auth functions for easy use across the app
+	// Wrap Supabase auth functions
 	const signUp = async (name, birthDate, phone, email, password) => {
 		const { data, error: authError } = await supabase.auth.signUp({
 			email,
@@ -78,7 +77,7 @@ export const AuthProvider = ({ children }) => {
 	)
 }
 
-// Custom hook for easy consumption of context
+// Custom hook
 export const useAuth = () => {
 	return useContext(AuthContext)
 }
