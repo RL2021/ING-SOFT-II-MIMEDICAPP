@@ -1,14 +1,41 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import InputField from "../components/InputField";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    const { error } = await signIn(formData.email.trim(), formData.password);
+    setIsSubmitting(false);
+
+    if (error) {
+      setErrorMessage("Correo o contrasena incorrectos. Revisa tus datos e intentalo otra vez.");
+      return;
+    }
+
     navigate("/dashboard");
+  };
+
+  const updateField = (field, value) => {
+    setFormData((currentData) => ({
+      ...currentData,
+      [field]: value,
+    }));
   };
 
   return (
@@ -24,6 +51,10 @@ export default function Login() {
           type="email"
           placeholder="nombre@correo.com"
           autoComplete="email"
+          value={formData.email}
+          onChange={(event) => updateField("email", event.target.value)}
+          required
+          disabled={isSubmitting}
         />
         <InputField
           id="password"
@@ -31,7 +62,16 @@ export default function Login() {
           type="password"
           placeholder="Ingresa tu contrasena"
           autoComplete="current-password"
+          value={formData.password}
+          onChange={(event) => updateField("password", event.target.value)}
+          required
+          disabled={isSubmitting}
         />
+        {errorMessage && (
+          <p className="rounded-2xl bg-lotus-100 px-4 py-3 text-center text-base font-bold text-lotus-500">
+            {errorMessage}
+          </p>
+        )}
         <div className="-mt-2 text-right">
           <Link
             to="/forgot_password"
@@ -41,7 +81,9 @@ export default function Login() {
           </Link>
         </div>
         <div className="pt-2">
-          <PrimaryButton type="submit">Iniciar sesion</PrimaryButton>
+          <PrimaryButton type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Iniciando sesion..." : "Iniciar sesion"}
+          </PrimaryButton>
         </div>
       </form>
 
