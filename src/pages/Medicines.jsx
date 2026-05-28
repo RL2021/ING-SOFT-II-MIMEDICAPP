@@ -1,3 +1,4 @@
+// IMPORTACIONES DE LIBRERÍAS Y COMPONENTES
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Pill, Plus, Trash2, Edit3, CheckCircle2 } from "lucide-react";
@@ -6,27 +7,27 @@ import DashboardMenu from "../components/DashboardMenu";
 export default function Medicines() {
   const navigate = useNavigate();
 
-  // Estados de datos
+  // ESTADOS DE DATOS Y FLUJO
   const [medicines, setMedicines] = useState([]);
   const [selectedMed, setSelectedMed] = useState(null); // Detalle de medicación
   const [editingIndex, setEditingIndex] = useState(null); // Saber si creamos o editamos
   
-  // Estados de flujo
   const [currentView, setCurrentView] = useState("list");
   const [deleteMode, setDeleteMode] = useState(false); // Modo selección para borrar
   const [checkedIds, setCheckedIds] = useState([]); // Array de elementos seleccionados para borrar
   const [showDeleteModal, setShowDeleteModal] = useState(false); // Pop-up de confirmación
 
-  // Estado del formulario
+  // Estado del formulario interno
   const [formData, setFormData] = useState({
     nombre: "",
     dosis: "",
     frecuencia: "Cada 8 horas",
     toma: "",
-    completado: false // Cumplimiento diario
+    completado: false // Control de cumplimiento diario
   });
 
-  // Cargar localStorage al iniciar
+
+  // PERSISTENCIA LOCAL (LOCALSTORAGE)
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("misMedicinas")) || [];
     setMedicines(stored);
@@ -36,6 +37,8 @@ export default function Medicines() {
     setMedicines(newList);
     localStorage.setItem("misMedicinas", JSON.stringify(newList));
   };
+
+  // SECCIÓN 4: CONTROLADORES LÓGICOS (FUNCIONES)
 
   // Abrir formulario (crear/editar)
   const handleOpenForm = (index = null) => {
@@ -77,7 +80,7 @@ export default function Medicines() {
     }
   };
 
-  // Confirmar eliminación
+  // Confirmar eliminación física
   const executeDelete = () => {
     const updatedList = medicines.filter((_, index) => !checkedIds.includes(index));
     saveToStorage(updatedList);
@@ -86,20 +89,22 @@ export default function Medicines() {
     setShowDeleteModal(false);
   };
 
-  // Marcar como tomado
+  // Marcar como tomado (Mutación reactiva del estado)
   const toggleCompleteToma = (index, e) => {
-    e.stopPropagation(); // Evita que se abra el detalle al marcar el check
+    e.stopPropagation(); // Evita el efecto burbuja
     const updatedList = [...medicines];
     updatedList[index].completado = !updatedList[index].completado;
     saveToStorage(updatedList);
   };
 
+  // RENDERIZADO DE INTERFAZ
   return (
     <div className="min-h-screen bg-plum-50 text-plum-800 font-sans">
       <DashboardMenu />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         
+        {/* LISTADO GENERAL */}
         {currentView === "list" && (
           <section>
             <div className="mb-6 flex flex-wrap gap-3 justify-between items-center">
@@ -138,6 +143,7 @@ export default function Medicines() {
               </div>
             </div>
 
+            {/* Encabezado del módulo */}
             <div className="mb-8 flex items-center gap-3">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lotus-100 text-lotus-500">
                 <Pill className="h-7 w-7" strokeWidth={2.4} />
@@ -145,7 +151,28 @@ export default function Medicines() {
               <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Medicación</h1>
             </div>
 
-            {/* Lista de medicinas */}
+            {/* BARRA DE PROGRESO */}
+            {medicines.length > 0 && (
+              <div className="mb-8 rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100">
+                <div className="mb-3 flex justify-between items-center text-sm font-black text-plum-700">
+                  <span>Progreso de tomas de hoy</span>
+                  <span className="text-lotus-500">
+                    {medicines.filter(m => m.completado).length} de {medicines.length} ({Math.round((medicines.filter(m => m.completado).length / medicines.length) * 100)}%)
+                  </span>
+                </div>
+                
+                {/* Base gris de la barra */}
+                <div className="h-6 w-full rounded-full bg-[#e1e4df] p-1 overflow-hidden flex items-center">
+                  {/* Contenedor dinámico */}
+                  <div 
+                    className="h-full rounded-full bg-[#ee2c70] transition-all duration-500 ease-out"
+                    style={{ width: `${(medicines.filter(m => m.completado).length / medicines.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Lista de medicamentos */}
             <div className="grid gap-4">
               {medicines.length === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
@@ -166,7 +193,7 @@ export default function Medicines() {
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      {/* Checkbox para Eliminación masiva */}
+                      {/* Checkbox para Eliminación */}
                       {deleteMode && (
                         <input
                           type="checkbox"
@@ -177,7 +204,7 @@ export default function Medicines() {
                         />
                       )}
                       
-                      {/* Check de Cumplimiento Diario (marcar como tomado) */}
+                      {/* Check de cumplimiento diario */}
                       {!deleteMode && (
                         <button
                           type="button"
@@ -200,7 +227,7 @@ export default function Medicines() {
                       </div>
                     </div>
 
-                    {/* Lápiz para editar */}
+                    {/* Lápiz para abrir edición */}
                     {!deleteMode && (
                       <button
                         type="button"
@@ -216,7 +243,7 @@ export default function Medicines() {
               )}
             </div>
 
-            {/* Botón inferior para eliminar */}
+            {/* Botón de ejecución para eliminación */}
             {deleteMode && checkedIds.length > 0 && (
               <div className="mt-8 flex justify-center">
                 <button
@@ -231,7 +258,7 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* Detalle del medicamento */}
+        {/* DETALLE DE MEDICAMENTO */}
         {currentView === "detail" && selectedMed && (
           <section className="mx-auto max-w-xl">
             <button
@@ -283,7 +310,7 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* Formulario (crear / editar) */}
+        {/* FORMULARIO (detecta si registra un nuevo medicamento o edita uno existente, capturando los campos en tiempo real) */}
         {currentView === "form" && (
           <section className="mx-auto max-w-xl">
             <button
@@ -368,7 +395,7 @@ export default function Medicines() {
 
       </main>
 
-      {/* Pop up de eliminar */}
+      {/* Eliminar pop up */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 text-center shadow-soft ring-1 ring-plum-100 lg:p-8 animate-in fade-in zoom-in-95 duration-150">
