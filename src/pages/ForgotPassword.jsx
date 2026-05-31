@@ -1,14 +1,30 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import AuthLayout from "../components/AuthLayout";
 import InputField from "../components/InputField";
 import PrimaryButton from "../components/PrimaryButton";
 
 export default function ForgotPassword() {
+  const { resetPassword } = useAuth();
+  const [email, setEmail] = useState("");
   const [enviado, setEnviado] = useState(false);
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError("");
+    setCargando(true);
+
+    const { error: resetError } = await resetPassword(email);
+
+    setCargando(false);
+
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
     setEnviado(true);
   };
 
@@ -25,9 +41,18 @@ export default function ForgotPassword() {
             type="email"
             placeholder="nombre@correo.com"
             autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
+          {error && (
+            <p className="text-center text-base font-semibold text-red-500">
+              {error}
+            </p>
+          )}
           <div className="pt-2">
-            <PrimaryButton type="submit">Enviar enlace</PrimaryButton>
+            <PrimaryButton type="submit" disabled={cargando}>
+              {cargando ? "Enviando..." : "Enviar enlace"}
+            </PrimaryButton>
           </div>
         </form>
       ) : (

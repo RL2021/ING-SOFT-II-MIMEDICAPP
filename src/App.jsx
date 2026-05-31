@@ -9,6 +9,8 @@ import Exercise from "./pages/Exercise"
 import ForgotPassword from "./pages/ForgotPassword"
 import Foods from "./pages/Foods"
 import { useAuth } from "./context/AuthContext"
+import UpdatePassword from "./pages/UpdatePassword";
+
 
 function ProtectedRoute({ children }) {
 	const { user, loading } = useAuth()
@@ -45,6 +47,8 @@ export default function App() {
 			<Route path="/dashboard/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 			<Route path="/dashboard/foods" element={<ProtectedRoute><Foods /></ProtectedRoute>} />
 			<Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
+			<Route path="/update-password" element={<UpdatePassword />} />
+
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
 		</Routes>
