@@ -127,12 +127,7 @@ export default function DashboardMenu({ onLogout }) {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/perfil")}
-            className="flex items-center justify-center gap-3 rounded-2xl bg-white/12 px-4 py-3 text-center sm:text-left transition hover:bg-white/20 cursor-pointer"
-            aria-label="Ir a mi perfil"
-          >
+          <div className="flex items-center justify-center gap-3 rounded-2xl bg-white/12 px-4 py-3 text-center sm:text-left">
             <UserRound className="h-7 w-7 text-lotus-400" aria-hidden="true" />
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-plum-100">
@@ -140,7 +135,7 @@ export default function DashboardMenu({ onLogout }) {
               </p>
               <p className="text-lg font-black">{userName}</p>
             </div>
-          </button>
+          </div>
 
           <button
             type="button"

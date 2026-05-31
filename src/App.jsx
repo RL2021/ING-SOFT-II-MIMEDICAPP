@@ -8,7 +8,6 @@ import Settings from "./pages/Settings"
 import Exercise from "./pages/Exercise"
 import ForgotPassword from "./pages/ForgotPassword"
 import Foods from "./pages/Foods"
-import Profile from "./pages/Profile"
 import { useAuth } from "./context/AuthContext"
 
 function ProtectedRoute({ children }) {
@@ -45,7 +44,6 @@ export default function App() {
 			<Route path="/dashboard/medicamentos" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
 			<Route path="/dashboard/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 			<Route path="/dashboard/foods" element={<ProtectedRoute><Foods /></ProtectedRoute>} />
-			<Route path="/dashboard/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 			<Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
