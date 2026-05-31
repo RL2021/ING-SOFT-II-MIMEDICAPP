@@ -15,7 +15,7 @@ export default function DashboardMenu({ onLogout }) {
       const profile = JSON.parse(stored);
       if (profile.nombre) setUserName(profile.nombre);
     }
-  }, []);
+  }, [userName]);
 
   const notificationsEnabled =
     localStorage.getItem("notificationsEnabled") === "true";
