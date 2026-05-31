@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Dumbbell, Plus, Trash2, Edit3, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Dumbbell, Plus, Trash2, Edit3, CheckCircle2, X } from "lucide-react";
 import DashboardMenu from "../components/DashboardMenu";
 
 export default function Exercise() {
@@ -11,13 +11,17 @@ export default function Exercise() {
   const [selectedEx, setSelectedEx] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   
+  // Estados para búsqueda y filtrado por pestañas
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // "all", "pending", "completed"
+  
   // Estados de flujo
   const [currentView, setCurrentView] = useState("list");
   const [deleteMode, setDeleteMode] = useState(false);
   const [checkedIds, setCheckedIds] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Estado del formulario (basado en tus mockups)
+  // Estado del formulario
   const [formData, setFormData] = useState({
     nombre: "",
     horario: "",
@@ -93,6 +97,23 @@ export default function Exercise() {
     saveToStorage(updatedList);
   };
 
+  // Lógica avanzada de filtrado combinado (Búsqueda + Pestaña de Estado)
+  const filteredExercises = exercises.filter((ex) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = 
+      ex.nombre.toLowerCase().includes(term) ||
+      (ex.descripcion && ex.descripcion.toLowerCase().includes(term));
+    
+    if (statusFilter === "pending") return matchesSearch && !ex.completado;
+    if (statusFilter === "completed") return matchesSearch && ex.completado;
+    return matchesSearch;
+  });
+
+  // Cálculos para los contadores y barra de progreso
+  const totalCount = exercises.length;
+  const completedCount = exercises.filter(e => e.completado).length;
+  const pendingCount = totalCount - completedCount;
+
   return (
     <div className="min-h-screen bg-plum-50 text-plum-800 font-sans">
       <DashboardMenu />
@@ -134,75 +155,156 @@ export default function Exercise() {
               </div>
             </div>
 
-            <div className="mb-8 flex items-center gap-3">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lotus-100 text-lotus-500">
-                <Dumbbell className="h-7 w-7" strokeWidth={2.4} />
-              </span>
-              <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Ejercicio</h1>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lotus-100 text-lotus-500">
+                  <Dumbbell className="h-7 w-7" strokeWidth={2.4} />
+                </span>
+                <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Ejercicio</h1>
+              </div>
+
+              {/* CONTADOR DE PROGRESO */}
+              {totalCount > 0 && (
+                <div className="text-right">
+                  <p className="text-sm font-bold text-plum-500">
+                    Progreso: <span className="text-plum-800 font-black">{completedCount}/{totalCount}</span> completados
+                  </p>
+                  <div className="mt-1 h-2 w-36 overflow-hidden rounded-full bg-plum-100 inline-block">
+                    <div 
+                      className="h-full bg-mint-500 transition-all duration-300"
+                      style={{ width: `${(completedCount / totalCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Lista de ejercicios */}
+            {/* BARRA DE BÚSQUEDA CON BOTÓN DE LIMPIAR */}
+            <div className="mb-4 relative">
+              <input
+                type="text"
+                placeholder="Buscar ejercicio..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-white pl-5 pr-12 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 shadow-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full text-plum-400 hover:bg-plum-50 hover:text-plum-600 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
+            {/* PESTAÑAS DE FILTRADO POR ESTADO */}
+            {totalCount > 0 && (
+              <div className="mb-6 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className={`px-4 py-2 text-sm font-black rounded-xl transition ${
+                    statusFilter === "all" 
+                      ? "bg-plum-700 text-white shadow-md" 
+                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                  }`}
+                >
+                  Todas ({totalCount})
+                </button>
+                <button
+                  onClick={() => setStatusFilter("pending")}
+                  className={`px-4 py-2 text-sm font-black rounded-xl transition ${
+                    statusFilter === "pending" 
+                      ? "bg-plum-700 text-white shadow-md" 
+                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                  }`}
+                >
+                  Pendientes ({pendingCount})
+                </button>
+                <button
+                  onClick={() => setStatusFilter("completed")}
+                  className={`px-4 py-2 text-sm font-black rounded-xl transition ${
+                    statusFilter === "completed" 
+                      ? "bg-plum-700 text-white shadow-md" 
+                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                  }`}
+                >
+                  Completadas ({completedCount})
+                </button>
+              </div>
+            )}
+
+            {/* LISTA DE EJERCICIOS FILTRADA */}
             <div className="grid gap-4">
-              {exercises.length === 0 ? (
+              {totalCount === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
                   <p className="text-lg font-medium text-plum-500 italic">No hay ejercicios registrados todavía.</p>
                 </div>
+              ) : filteredExercises.length === 0 ? (
+                <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
+                  <p className="text-lg font-medium text-plum-500 italic">No se encontraron ejercicios con los filtros actuales.</p>
+                </div>
               ) : (
-                exercises.map((ex, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (!deleteMode) {
-                        setSelectedEx({ ...ex, index });
-                        setCurrentView("detail");
-                      }
-                    }}
-                    className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
-                      deleteMode ? "border-plum-200 cursor-pointer" : "border-plum-100 hover:-translate-y-0.5 hover:border-lotus-400 hover:shadow-soft cursor-pointer"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      {deleteMode && (
-                        <input
-                          type="checkbox"
-                          checked={checkedIds.includes(index)}
-                          onChange={() => toggleCheck(index)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-5 w-5 rounded accent-lotus-500"
-                        />
-                      )}
-                      
+                filteredExercises.map((ex) => {
+                  // Buscar el índice real en el array principal de localStorage para evitar alterar el elemento equivocado al usar filtros
+                  const originalIndex = exercises.findIndex(item => item === ex);
+                  
+                  return (
+                    <div
+                      key={originalIndex}
+                      onClick={() => {
+                        if (!deleteMode) {
+                          setSelectedEx({ ...ex, index: originalIndex });
+                          setCurrentView("detail");
+                        }
+                      }}
+                      className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
+                        deleteMode ? "border-plum-200 cursor-pointer" : "border-plum-100 hover:-translate-y-0.5 hover:border-lotus-400 hover:shadow-soft cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {deleteMode && (
+                          <input
+                            type="checkbox"
+                            checked={checkedIds.includes(originalIndex)}
+                            onChange={() => toggleCheck(originalIndex)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-5 w-5 rounded accent-lotus-500"
+                          />
+                        )}
+                        
+                        {!deleteMode && (
+                          <button
+                            onClick={(e) => toggleComplete(originalIndex, e)}
+                            className={`mr-2 rounded-full transition p-1 ${
+                              ex.completado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
+                            }`}
+                          >
+                            <CheckCircle2 className="h-7 w-7" strokeWidth={ex.completado ? 2.8 : 1.8} />
+                          </button>
+                        )}
+
+                        <div>
+                          <h3 className={`text-xl font-black leading-tight text-plum-800 ${ex.completado ? "line-through opacity-50" : ""}`}>
+                            {ex.nombre}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-plum-500">
+                            {ex.horario || "Sin horario"} — {ex.descripcion}
+                          </p>
+                        </div>
+                      </div>
+
                       {!deleteMode && (
                         <button
-                          onClick={(e) => toggleComplete(index, e)}
-                          className={`mr-2 rounded-full transition p-1 ${
-                            ex.completado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
-                          }`}
+                          onClick={(e) => { e.stopPropagation(); handleOpenForm(originalIndex); }}
+                          className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
                         >
-                          <CheckCircle2 className="h-7 w-7" strokeWidth={ex.completado ? 2.8 : 1.8} />
+                          <Edit3 className="h-5 w-5" />
                         </button>
                       )}
-
-                      <div>
-                        <h3 className={`text-xl font-black leading-tight text-plum-800 ${ex.completado ? "line-through opacity-50" : ""}`}>
-                          {ex.nombre}
-                        </h3>
-                        <p className="mt-1 text-sm font-semibold text-plum-500">
-                          {ex.horario || "Sin horario"} — {ex.descripcion}
-                        </p>
-                      </div>
                     </div>
-
-                    {!deleteMode && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleOpenForm(index); }}
-                        className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
-                      >
-                        <Edit3 className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
 	ChevronLeft,
@@ -11,6 +11,8 @@ import {
 	Eye,
 	EyeOff,
 	Home,
+	Save,
+	UserRound,
 } from "lucide-react"
 import DashboardMenu from "../components/DashboardMenu"
 import { supabase } from "../lib/supabase"
@@ -20,6 +22,20 @@ export default function Settings() {
 	const navigate = useNavigate()
 
 	const [currentView, setCurrentView] = useState("menu")
+	const [profile, setProfile] = useState({
+		nombre: "",
+		correo: "",
+		telefono: "",
+		fechaNacimiento: "",
+	})
+	const [profileSaved, setProfileSaved] = useState(false)
+
+	useEffect(() => {
+		const storedProfile = localStorage.getItem("userProfile")
+		if (storedProfile) {
+			setProfile(JSON.parse(storedProfile))
+		}
+	}, [])
 
 	// Notificaciones
 	const [notificationsEnabled, setNotificationsEnabled] = useState(
@@ -41,6 +57,17 @@ export default function Settings() {
 		const next = !notificationsEnabled
 		setNotificationsEnabled(next)
 		localStorage.setItem("notificationsEnabled", String(next))
+	}
+
+	const handleProfileChange = (field, value) => {
+		setProfile({ ...profile, [field]: value })
+		setProfileSaved(false)
+	}
+
+	const handleProfileSubmit = (e) => {
+		e.preventDefault()
+		localStorage.setItem("userProfile", JSON.stringify(profile))
+		setProfileSaved(true)
 	}
 
 	const handleChangePassword = async (e) => {
@@ -104,17 +131,6 @@ export default function Settings() {
 								<Home className="h-4 w-4" />
 								Inicio
 							</button>
-							<button
-								type="button"
-								onClick={() => navigate("/dashboard")}
-								className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-plum-700 shadow-sm ring-1 ring-plum-100 transition hover:text-lotus-500 hover:shadow-soft"
-							>
-								<ChevronLeft
-									className="h-5 w-5"
-									aria-hidden="true"
-								/>
-								Volver al panel
-							</button>
 						</div>
 
 						<div className="mb-8 flex items-center gap-3">
@@ -130,6 +146,18 @@ export default function Settings() {
 						</div>
 
 						<div className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8 flex flex-col gap-4">
+							<button
+								type="button"
+								onClick={() => {
+									setProfileSaved(false)
+									setCurrentView("profile")
+								}}
+								className="flex min-h-14 w-full items-center justify-center rounded-full border-2 border-plum-200 bg-white px-6 py-3 text-lg font-black text-plum-800 transition hover:bg-plum-50 hover:border-plum-400"
+							>
+								<UserRound className="mr-3 h-5 w-5 text-plum-500 shrink-0" />
+								Mi Perfil
+							</button>
+
 							<button
 								type="button"
 								onClick={() => setCurrentView("notifications")}
@@ -180,21 +208,107 @@ export default function Settings() {
 							<button
 								type="button"
 								onClick={() => setShowLogoutModal(true)}
-								className="flex min-h-14 w-full items-center justify-center rounded-full border-2 border-plum-700 bg-white px-6 py-3 text-lg font-black text-plum-800 transition hover:bg-plum-50"
+								className="flex min-h-14 w-full items-center justify-center rounded-full bg-lotus-500 px-6 py-3 text-lg font-black text-white transition hover:bg-lotus-400"
 							>
-								<LogOut className="mr-3 h-5 w-5 text-plum-500 shrink-0" />
+								<LogOut className="mr-3 h-5 w-5 shrink-0" />
 								Cerrar Sesión
 							</button>
 
 							<button
 								type="button"
 								onClick={() => setShowDeleteModal(true)}
-								className="flex min-h-14 w-full items-center justify-center rounded-full bg-lotus-500 px-6 py-3 text-lg font-black text-white transition hover:bg-lotus-400"
+								className="flex min-h-14 w-full items-center justify-center rounded-full border-2 border-plum-700 bg-white px-6 py-3 text-lg font-black text-plum-800 transition hover:bg-plum-50"
 							>
-								<UserX className="mr-3 h-5 w-5 shrink-0" />
+								<UserX className="mr-3 h-5 w-5 text-plum-500 shrink-0" />
 								Eliminar Cuenta
 							</button>
 						</div>
+					</>
+				)}
+
+				{/* ── VISTA NOTIFICACIONES ── */}
+				{currentView === "profile" && (
+					<>
+						<button
+							type="button"
+							onClick={() => setCurrentView("menu")}
+							className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-plum-700 shadow-sm ring-1 ring-plum-100 transition hover:text-lotus-500"
+						>
+							<ChevronLeft className="h-5 w-5" /> Volver
+						</button>
+
+						<div className="mb-8 flex items-center gap-3">
+							<span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lotus-100 text-lotus-500">
+								<UserRound className="h-7 w-7" strokeWidth={2.4} />
+							</span>
+							<h1 className="text-3xl font-black text-plum-800 sm:text-4xl">
+								Mi perfil
+							</h1>
+						</div>
+
+						<form
+							onSubmit={handleProfileSubmit}
+							className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8"
+						>
+							<div className="grid gap-5">
+								<label className="grid gap-2 text-lg font-bold text-plum-800">
+									Nombre completo
+									<input
+										type="text"
+										value={profile.nombre}
+										onChange={(e) => handleProfileChange("nombre", e.target.value)}
+										placeholder="Ej. Jorge Perez"
+										className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
+									/>
+								</label>
+
+								<label className="grid gap-2 text-lg font-bold text-plum-800">
+									Correo
+									<input
+										type="email"
+										value={profile.correo}
+										onChange={(e) => handleProfileChange("correo", e.target.value)}
+										placeholder="ejemplo@correo.com"
+										className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
+									/>
+								</label>
+
+								<label className="grid gap-2 text-lg font-bold text-plum-800">
+									Telefono
+									<input
+										type="tel"
+										value={profile.telefono}
+										onChange={(e) => handleProfileChange("telefono", e.target.value)}
+										placeholder="999 999 999"
+										className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
+									/>
+								</label>
+
+								<label className="grid gap-2 text-lg font-bold text-plum-800">
+									Fecha de nacimiento
+									<input
+										type="date"
+										value={profile.fechaNacimiento}
+										onChange={(e) => handleProfileChange("fechaNacimiento", e.target.value)}
+										className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
+									/>
+								</label>
+
+								{profileSaved && (
+									<div className="rounded-2xl bg-mint-100 px-4 py-3 text-base font-bold text-mint-500">
+										Datos guardados correctamente.
+									</div>
+								)}
+
+								<button
+									type="submit"
+									className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-plum-700 px-6 py-3 text-lg font-extrabold text-white shadow-lg shadow-plum-700/20 transition hover:bg-plum-800 active:scale-[0.98]"
+								>
+									<Save className="h-5 w-5" />
+									Guardar cambios
+								</button>
+							</div>
+						</form>
 					</>
 				)}
 
@@ -458,19 +572,19 @@ export default function Settings() {
 								<p className="font-semibold text-plum-600">
 									Teléfono:{" "}
 									<span className="font-black text-plum-800">
-										9999999
+										(01) 423-5566
 									</span>
 								</p>
 								<p className="font-semibold text-plum-600">
 									Celular:{" "}
 									<span className="font-black text-plum-800">
-										999999999
+										+51 912 345 678
 									</span>
 								</p>
 								<p className="font-semibold text-plum-600">
 									Correo:{" "}
 									<span className="font-black text-plum-800">
-										miappsoporte@gmail.com
+										mimedicappsoporte@gmail.com
 									</span>
 								</p>
 							</div>

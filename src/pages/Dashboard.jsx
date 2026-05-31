@@ -1,7 +1,6 @@
 import {
   Apple,
   CalendarDays,
-  ClipboardList,
   Dumbbell,
   Pill,
   Settings,
@@ -39,12 +38,9 @@ const modules = [
     accent: "bg-plum-100 text-plum-700",
     path: "/exercise",
   },
-  {
-    title: "Reportes",
-    description: "Consulta un resumen basico de tu salud.",
-    icon: ClipboardList,
-    accent: "bg-skysoft-100 text-plum-700",
-  },
+];
+
+const otherModules = [
   {
     title: "Configuracion",
     description: "Administra tus preferencias y cuenta.",
@@ -84,6 +80,21 @@ export default function Dashboard() {
             />
           ))}
         </div>
+
+        <section className="mt-10 border-t border-plum-200 pt-8">
+          <p className="mb-4 text-sm font-black uppercase tracking-wide text-plum-500">
+            Otros
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
+            {otherModules.map((module) => (
+              <DashboardCard
+                key={module.title}
+                {...module}
+                onClick={module.path ? () => navigate(module.path) : undefined}
+              />
+            ))}
+          </div>
+        </section>
       </section>
     </main>
   );

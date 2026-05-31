@@ -1,4 +1,4 @@
-export default function PrimaryButton({ children, type = "button", variant = "solid", onClick }) {
+export default function PrimaryButton({ children, type = "button", variant = "solid", onClick, disabled = false }) {
   const styles =
     variant === "outline"
       ? "border-4 border-plum-700 bg-white text-plum-700 hover:bg-plum-50"
@@ -8,7 +8,8 @@ export default function PrimaryButton({ children, type = "button", variant = "so
     <button
       type={type}
       onClick={onClick}
-      className={`flex min-h-14 w-full items-center justify-center rounded-full px-6 py-3 text-lg font-extrabold transition active:scale-[0.98] ${styles}`}
+      disabled={disabled}
+      className={`flex min-h-14 w-full items-center justify-center rounded-full px-6 py-3 text-lg font-extrabold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${styles}`}
     >
       {children}
     </button>

@@ -18,6 +18,7 @@ export default function Foods() {
   const [foods, setFoods] = useState([]);
   const [selectedFood, setSelectedFood] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Flujo
   const [currentView, setCurrentView] = useState("list");
@@ -42,6 +43,11 @@ export default function Foods() {
     setFoods(newList);
     localStorage.setItem("foods", JSON.stringify(newList));
   };
+
+  // Filtro de búsqueda
+  const filteredFoods = foods.filter((food) =>
+    food.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Abrir formulario
   const handleOpenForm = (index = null) => {
@@ -162,16 +168,29 @@ export default function Foods() {
               </h1>
             </div>
 
+            {/* BUSCADOR */}
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="Buscar alimento..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-14 rounded-2xl border-2 border-plum-100 bg-white px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
+              />
+            </div>
+
             {/* LISTA */}
             <div className="grid gap-4">
-              {foods.length === 0 ? (
+              {filteredFoods.length === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
                   <p className="text-lg font-medium text-plum-500 italic">
-                    No hay comidas registradas todavía.
+                    {searchTerm
+                      ? "No se encontraron alimentos."
+                      : "No hay comidas registradas todavía."}
                   </p>
                 </div>
               ) : (
-                foods.map((food, index) => (
+                filteredFoods.map((food, index) => (
                   <div
                     key={index}
                     onClick={() => {
@@ -236,7 +255,6 @@ export default function Foods() {
               )}
             </div>
 
-            {/* BOTON ELIMINAR */}
             {deleteMode && checkedIds.length > 0 && (
               <div className="mt-8 flex justify-center">
                 <button
@@ -269,7 +287,6 @@ export default function Foods() {
               <div className="grid gap-4 text-lg text-left">
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Detalles</span>
-
                   <span className="font-medium text-plum-600">
                     {selectedFood.detail}
                   </span>
@@ -279,7 +296,6 @@ export default function Foods() {
                   <span className="font-bold text-plum-700">
                     Recomendable
                   </span>
-
                   <span className="font-medium text-plum-600">
                     {selectedFood.recommended ? "Sí" : "No"}
                   </span>
@@ -313,72 +329,57 @@ export default function Foods() {
               className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8"
               onSubmit={handleFormSubmit}
             >
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-wide text-lotus-500">
-                    {editingIndex !== null ? "Modificar" : "Nueva"} comida
-                  </p>
-
-                  <h1 className="mt-1 text-2xl font-black text-plum-800">
-                    {editingIndex !== null
-                      ? "Editar comida"
-                      : "Registrar comida"}
-                  </h1>
-                </div>
+              <div className="mb-6">
+                <h1 className="text-2xl font-black text-plum-800">
+                  {editingIndex !== null
+                    ? "Editar comida"
+                    : "Registrar comida"}
+                </h1>
               </div>
 
               <div className="grid gap-4">
-                <label className="grid gap-2 text-lg font-bold text-plum-800">
-                  Nombre
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        name: e.target.value,
-                      })
-                    }
-                    className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
-                    placeholder="Ej. Ensalada César"
-                  />
-                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      name: e.target.value,
+                    })
+                  }
+                  className="h-14 w-full rounded-2xl border-2 border-plum-100 px-4"
+                  placeholder="Nombre"
+                />
 
-                <label className="grid gap-2 text-lg font-bold text-plum-800">
-                  Detalles
-                  <textarea
-                    value={formData.detail}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        detail: e.target.value,
-                      })
-                    }
-                    className="h-32 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 p-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
-                    placeholder="Ej. Ensalada saludable con verduras."
-                  />
-                </label>
+                <textarea
+                  value={formData.detail}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      detail: e.target.value,
+                    })
+                  }
+                  className="h-32 w-full rounded-2xl border-2 border-plum-100 p-4"
+                  placeholder="Detalles"
+                />
 
-                <label className="grid gap-2 text-lg font-bold text-plum-800">
-                  ¿Es recomendable?
-                  <select
-                    value={formData.recommended ? "si" : "no"}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        recommended: e.target.value === "si",
-                      })
-                    }
-                    className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
-                  >
-                    <option value="si">Sí</option>
-                    <option value="no">No</option>
-                  </select>
-                </label>
+                <select
+                  value={formData.recommended ? "si" : "no"}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      recommended: e.target.value === "si",
+                    })
+                  }
+                  className="h-14 w-full rounded-2xl border-2 border-plum-100 px-4"
+                >
+                  <option value="si">Recomendable</option>
+                  <option value="no">No recomendable</option>
+                </select>
 
                 <button
                   type="submit"
-                  className="mt-4 flex min-h-14 w-full items-center justify-center rounded-full bg-plum-700 px-6 py-3 text-lg font-extrabold text-white shadow-lg transition hover:bg-plum-800"
+                  className="mt-4 min-h-14 rounded-full bg-plum-700 text-white font-extrabold"
                 >
                   {editingIndex !== null ? "Actualizar" : "Agregar"}
                 </button>
@@ -390,24 +391,12 @@ export default function Foods() {
 
       {/* MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 text-center shadow-soft ring-1 ring-plum-100 lg:p-8">
-            <h3 className="text-xl font-black text-plum-800 mb-6">
-              ¿Está seguro que desea eliminar?
-            </h3>
-
-            <div className="flex gap-4">
-              <button
-                onClick={executeDelete}
-                className="flex-1 min-h-12 rounded-full bg-plum-700 font-extrabold text-white transition hover:bg-plum-800"
-              >
-                SÍ
-              </button>
-
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="flex-1 min-h-12 rounded-full border-2 border-plum-700 bg-white font-extrabold text-plum-700 transition hover:bg-plum-50"
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40">
+          <div className="bg-white p-8 rounded-3xl">
+            <h3>¿Está seguro que desea eliminar?</h3>
+            <div className="flex gap-4 mt-4">
+              <button onClick={executeDelete}>Sí</button>
+              <button onClick={() => setShowDeleteModal(false)}>
                 Cancelar
               </button>
             </div>

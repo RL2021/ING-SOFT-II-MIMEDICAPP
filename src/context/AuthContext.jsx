@@ -10,11 +10,14 @@ export const AuthProvider = ({ children }) => {
 	useEffect(() => {
 		// Check active sessions on initial page load
 		const initializeAuth = async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession()
-			setUser(session?.user ?? null)
-			setLoading(false)
+			try {
+				const {
+					data: { session },
+				} = await supabase.auth.getSession()
+				setUser(session?.user ?? null)
+			} finally {
+				setLoading(false)
+			}
 		}
 
 		initializeAuth()
@@ -38,13 +41,24 @@ export const AuthProvider = ({ children }) => {
 		const { data, error: authError } = await supabase.auth.signUp({
 			email,
 			password,
+			options: {
+				data: {
+					name,
+					birth_date: birthDate,
+					phone,
+				},
+			},
 		})
 		if (authError) {
 			console.error("Auth Error:", authError.message)
-			return
+			return { data: null, error: authError }
 		}
 
 		const userId = data?.user?.id
+		if (!userId) {
+			return { data, error: null }
+		}
+
 		const { error: dbError } = await supabase.from("users").insert({
 			id: userId,
 			name: name,
@@ -55,10 +69,12 @@ export const AuthProvider = ({ children }) => {
 
 		if (dbError) {
 			console.error("Database Error:", dbError.message)
-			return
+			return { data, error: dbError }
 		}
+
+		return { data, error: null }
 	}
-	const signIn = (email, password) =>
+	const signIn = async (email, password) =>
 		supabase.auth.signInWithPassword({ email, password })
 	const signOut = () => supabase.auth.signOut()
 

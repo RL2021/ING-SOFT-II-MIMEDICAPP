@@ -8,7 +8,25 @@ import Settings from "./pages/Settings"
 import Exercise from "./pages/Exercise"
 import ForgotPassword from "./pages/ForgotPassword"
 import Foods from "./pages/Foods"
-import Profile from "./pages/Profile"
+import { useAuth } from "./context/AuthContext"
+
+function ProtectedRoute({ children }) {
+	const { user, loading } = useAuth()
+
+	if (loading) {
+		return (
+			<main className="grid min-h-screen place-items-center bg-plum-50 px-4 text-center text-plum-800">
+				<p className="text-xl font-black">Cargando MIMEDICAPP...</p>
+			</main>
+		)
+	}
+
+	if (!user) {
+		return <Navigate to="/login" replace />
+	}
+
+	return children
+}
 
 export default function App() {
 	return (
@@ -17,17 +35,16 @@ export default function App() {
 			<Route path="/login" element={<Login />} />
 			<Route path="/forgot_password" element={<ForgotPassword />} />
 			<Route path="/register" element={<Register />} />
-			<Route path="/dashboard" element={<Dashboard />} />
-			<Route path="/dashboard/citas-medicas" element={<Appointments />} />
+			<Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+			<Route path="/dashboard/citas-medicas" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
 			<Route
 				path="/dashboard/notificaciones"
-				element={<Appointments />}
+				element={<ProtectedRoute><Appointments /></ProtectedRoute>}
 			/>
-			<Route path="/dashboard/medicamentos" element={<Medicines />} />
-			<Route path="/dashboard/configuracion" element={<Settings />} />
-			<Route path="/dashboard/foods" element={<Foods />} />
-			<Route path="/dashboard/perfil" element={<Profile />} />
-			<Route path="/exercise" element={<Exercise />} />
+			<Route path="/dashboard/medicamentos" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
+			<Route path="/dashboard/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+			<Route path="/dashboard/foods" element={<ProtectedRoute><Foods /></ProtectedRoute>} />
+			<Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
 		</Routes>
