@@ -9,28 +9,33 @@ export default function Medicines() {
 
   // ESTADOS DE DATOS Y FLUJO
   const [medicines, setMedicines] = useState([]);
-  const [selectedMed, setSelectedMed] = useState(null); // Detalle de medicación
-  const [editingIndex, setEditingIndex] = useState(null); // Saber si creamos o editamos
+  const [selectedMed, setSelectedMed] = useState(null); // Control para +verDetalle(): Medicamento
+  const [editingIndex, setEditingIndex] = useState(null); // Control para saber si se edita una posición
   
   const [currentView, setCurrentView] = useState("list");
-  const [deleteMode, setDeleteMode] = useState(false); // Modo selección para borrar
-  const [checkedIds, setCheckedIds] = useState([]); // Array de elementos seleccionados para borrar
-  const [showDeleteModal, setShowDeleteModal] = useState(false); // Pop-up de confirmación
+  const [deleteMode, setDeleteMode] = useState(false); 
+  const [checkedIds, setCheckedIds] = useState([]); 
+  const [showDeleteModal, setShowDeleteModal] = useState(false); 
 
-  // Estado del formulario interno
+  // Estado del formulario basado en las propiedades de Medicamento
   const [formData, setFormData] = useState({
     nombre: "",
     dosis: "",
     frecuencia: "Cada 8 horas",
-    toma: "",
-    completado: false // Control de cumplimiento diario
+    primera_toma: "",      // Atributo: datetime
+    activo: true,          // Atributo: boolean
+    tomado: false          // Atributo: boolean
   });
 
 
-  // PERSISTENCIA LOCAL (LOCALSTORAGE)
+  // PERSISTENCIA EN BASE DE DATOS LOCAL
+  // +listarMedicamentos(): List
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("misMedicinas")) || [];
-    setMedicines(stored);
+    const listarMedicamentos = () => {
+      const stored = JSON.parse(localStorage.getItem("misMedicinas")) || [];
+      setMedicines(stored);
+    };
+    listarMedicamentos();
   }, []);
 
   const saveToStorage = (newList) => {
@@ -38,21 +43,36 @@ export default function Medicines() {
     localStorage.setItem("misMedicinas", JSON.stringify(newList));
   };
 
-  // SECCIÓN 4: CONTROLADORES LÓGICOS (FUNCIONES)
 
-  // Abrir formulario (crear/editar)
+  // MÉTODOS OFICIALES DE LA CLASE MEDICAMENTO
+  // Control de apertura de formulario
   const handleOpenForm = (index = null) => {
     if (index !== null) {
       setFormData(medicines[index]);
       setEditingIndex(index);
     } else {
-      setFormData({ nombre: "", dosis: "", frecuencia: "Cada 8 horas", toma: "", completado: false });
+      setFormData({ nombre: "", dosis: "", frecuencia: "Cada 8 horas", primera_toma: "", activo: true, tomado: false });
       setEditingIndex(null);
     }
     setCurrentView("form");
   };
 
-  // Submit del formulario
+  // +agregarMedicamento(): void
+  const agregarMedicamento = (nuevoMedicamento) => {
+    const updatedList = [...medicines, nuevoMedicamento];
+    saveToStorage(updatedList);
+    setCurrentView("list");
+  };
+
+  // +editarMedicamento(): void
+  const editarMedicamento = (medicamentoEditado) => {
+    let updatedList = [...medicines];
+    updatedList[editingIndex] = medicamentoEditado;
+    saveToStorage(updatedList);
+    setCurrentView("list");
+  };
+
+  // Manejador del Submit del Formulario
   const handleFormSubmit = (e) => {
     e.preventDefault();
     if (!formData.nombre || !formData.dosis) {
@@ -60,18 +80,14 @@ export default function Medicines() {
       return;
     }
 
-    let updatedList = [...medicines];
     if (editingIndex !== null) {
-      updatedList[editingIndex] = formData; // Editar
+      editarMedicamento(formData); 
     } else {
-      updatedList.push(formData); // Registrar
+      agregarMedicamento(formData);
     }
-
-    saveToStorage(updatedList);
-    setCurrentView("list");
   };
 
-  // Selección de eliminación masiva
+  // Manejo de selección en la interfaz para borrado
   const toggleCheck = (index) => {
     if (checkedIds.includes(index)) {
       setCheckedIds(checkedIds.filter(id => id !== index));
@@ -80,8 +96,8 @@ export default function Medicines() {
     }
   };
 
-  // Confirmar eliminación física
-  const executeDelete = () => {
+  // +eliminarMedicamento(): void
+  const eliminarMedicamento = () => {
     const updatedList = medicines.filter((_, index) => !checkedIds.includes(index));
     saveToStorage(updatedList);
     setCheckedIds([]);
@@ -89,15 +105,16 @@ export default function Medicines() {
     setShowDeleteModal(false);
   };
 
-  // Marcar como tomado (Mutación reactiva del estado)
-  const toggleCompleteToma = (index, e) => {
+  // +marcarComoTomado(): void
+  const marcarComoTomado = (index, e) => {
     e.stopPropagation(); // Evita el efecto burbuja
     const updatedList = [...medicines];
-    updatedList[index].completado = !updatedList[index].completado;
+    updatedList[index].tomado = !updatedList[index].tomado; // Invierte el atributo tomado
     saveToStorage(updatedList);
   };
 
-  // RENDERIZADO DE INTERFAZ
+
+  // RENDERIZADO DE INTERFAZ DENTRO DE MEDICINES.JSX
   return (
     <div className="min-h-screen bg-plum-50 text-plum-800 font-sans">
       <DashboardMenu />
@@ -157,22 +174,20 @@ export default function Medicines() {
                 <div className="mb-3 flex justify-between items-center text-sm font-black text-plum-700">
                   <span>Progreso de tomas de hoy</span>
                   <span className="text-lotus-500">
-                    {medicines.filter(m => m.completado).length} de {medicines.length} ({Math.round((medicines.filter(m => m.completado).length / medicines.length) * 100)}%)
+                    {medicines.filter(m => m.tomado).length} de {medicines.length} ({Math.round((medicines.filter(m => m.tomado).length / medicines.length) * 100)}%)
                   </span>
                 </div>
                 
-                {/* Base gris de la barra */}
                 <div className="h-6 w-full rounded-full bg-[#e1e4df] p-1 overflow-hidden flex items-center">
-                  {/* Contenedor dinámico */}
                   <div 
                     className="h-full rounded-full bg-[#ee2c70] transition-all duration-500 ease-out"
-                    style={{ width: `${(medicines.filter(m => m.completado).length / medicines.length) * 100}%` }}
+                    style={{ width: `${(medicines.filter(m => m.tomado).length / medicines.length) * 100}%` }}
                   />
                 </div>
               </div>
             )}
 
-            {/* Lista de medicamentos */}
+            {/* Lista de medicamentos (+listarMedicamentos) */}
             <div className="grid gap-4">
               {medicines.length === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
@@ -185,7 +200,7 @@ export default function Medicines() {
                     onClick={() => {
                       if (!deleteMode) {
                         setSelectedMed({ ...med, index });
-                        setCurrentView("detail");
+                        setCurrentView("detail"); // Muestra la vista detallada -> +verDetalle(): Medicamento
                       }
                     }}
                     className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
@@ -193,7 +208,7 @@ export default function Medicines() {
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      {/* Checkbox para Eliminación */}
+                      {/* Checkbox para Eliminación Masiva */}
                       {deleteMode && (
                         <input
                           type="checkbox"
@@ -204,21 +219,21 @@ export default function Medicines() {
                         />
                       )}
                       
-                      {/* Check de cumplimiento diario */}
+                      {/* Botón para activar el método +marcarComoTomado() */}
                       {!deleteMode && (
                         <button
                           type="button"
-                          onClick={(e) => toggleCompleteToma(index, e)}
+                          onClick={(e) => marcarComoTomado(index, e)}
                           className={`mr-2 rounded-full transition p-1 ${
-                            med.completado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
+                            med.tomado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
                           }`}
                         >
-                          <CheckCircle2 className="h-7 w-7" strokeWidth={med.completado ? 2.8 : 1.8} />
+                          <CheckCircle2 className="h-7 w-7" strokeWidth={med.tomado ? 2.8 : 1.8} />
                         </button>
                       )}
 
                       <div>
-                        <h3 className={`text-xl font-black leading-tight text-plum-800 ${med.completado ? "line-through opacity-50" : ""}`}>
+                        <h3 className={`text-xl font-black leading-tight text-plum-800 ${med.tomado ? "line-through opacity-50" : ""}`}>
                           {med.nombre}
                         </h3>
                         <p className="mt-1 text-sm font-semibold text-plum-500">
@@ -227,7 +242,7 @@ export default function Medicines() {
                       </div>
                     </div>
 
-                    {/* Lápiz para abrir edición */}
+                    {/* Botón para abrir el formulario +editarMedicamento() */}
                     {!deleteMode && (
                       <button
                         type="button"
@@ -258,7 +273,7 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* DETALLE DE MEDICAMENTO */}
+        {/* VISTA: DETALLE DE MEDICAMENTO (+verDetalle) */}
         {currentView === "detail" && selectedMed && (
           <section className="mx-auto max-w-xl">
             <button
@@ -281,7 +296,7 @@ export default function Medicines() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Primera toma</span>
-                  <span className="font-medium text-plum-600">{selectedMed.toma || "No especificada"}</span>
+                  <span className="font-medium text-plum-600">{selectedMed.primera_toma || "No especificada"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Repetición</span>
@@ -290,9 +305,9 @@ export default function Medicines() {
                 <div className="flex justify-between py-2">
                   <span className="font-bold text-plum-700">Estado</span>
                   <span className={`font-black uppercase tracking-wide text-sm rounded-xl px-3 py-1 ${
-                    selectedMed.completado ? "bg-mint-100 text-mint-500" : "bg-lotus-100 text-lotus-500"
+                    selectedMed.tomado ? "bg-mint-100 text-mint-500" : "bg-lotus-100 text-lotus-500"
                   }`}>
-                    {selectedMed.completado ? "Tomado" : "Pendiente"}
+                    {selectedMed.tomado ? "Tomado" : "Pendiente"}
                   </span>
                 </div>
               </div>
@@ -310,7 +325,7 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* FORMULARIO (detecta si registra un nuevo medicamento o edita uno existente, capturando los campos en tiempo real) */}
+        {/* FORMULARIO INTELIGENTE (Captura datos para pasárselos a +agregarMedicamento o +editarMedicamento) */}
         {currentView === "form" && (
           <section className="mx-auto max-w-xl">
             <button
@@ -376,8 +391,8 @@ export default function Medicines() {
                   Primera toma
                   <input
                     type="time"
-                    value={formData.toma}
-                    onChange={(e) => setFormData({ ...formData, toma: e.target.value })}
+                    value={formData.primera_toma}
+                    onChange={(e) => setFormData({ ...formData, primera_toma: e.target.value })}
                     className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 transition hover:border-plum-200 focus:border-lotus-500 focus:bg-white focus:outline-none"
                   />
                 </label>
@@ -395,7 +410,7 @@ export default function Medicines() {
 
       </main>
 
-      {/* Eliminar pop up */}
+      {/* Pop-up de confirmación para +eliminarMedicamento */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 text-center shadow-soft ring-1 ring-plum-100 lg:p-8 animate-in fade-in zoom-in-95 duration-150">
@@ -405,7 +420,7 @@ export default function Medicines() {
             <div className="flex gap-4">
               <button
                 type="button"
-                onClick={executeDelete}
+                onClick={eliminarMedicamento}
                 className="flex-1 min-h-12 rounded-full bg-plum-700 font-extrabold text-white transition hover:bg-plum-800"
               >
                 SÍ
