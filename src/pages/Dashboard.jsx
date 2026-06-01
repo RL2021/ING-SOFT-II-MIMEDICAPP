@@ -1,6 +1,7 @@
 import {
   Apple,
   CalendarDays,
+  ClipboardList,
   Dumbbell,
   Pill,
   Settings,
@@ -41,6 +42,12 @@ const modules = [
 ];
 
 const otherModules = [
+  {
+    title: "Reportes",
+    description: "Consulta un resumen basico de tu salud.",
+    icon: ClipboardList,
+    accent: "bg-skysoft-100 text-plum-700",
+  },
   {
     title: "Configuracion",
     description: "Administra tus preferencias y cuenta.",
