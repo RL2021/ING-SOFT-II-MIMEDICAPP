@@ -25,8 +25,7 @@ import DashboardMenu from './DashboardMenu';
 import { notificationEngine } from '../notifications/NotificationEngine';
 import { formatearFecha } from '../notifications/utils';
 
-// ─── Mapa visual por tipo (solo presentación, no lógica) ─────────────────────
-// OCP: para un nuevo tipo, se agrega aquí una entrada y se crea su estrategia.
+
 const ICONO_CONFIG = {
   medicamento: { Icono: Pill,          bg: 'bg-lotus-100',   color: 'text-lotus-500'   },
   cita:        { Icono: CalendarClock, bg: 'bg-skysoft-100', color: 'text-skysoft-500' },
