@@ -29,18 +29,79 @@ export default function Exercise() {
     completado: false
   });
 
-  // Cargar localStorage al iniciar
-  useEffect(() => {
+  // =========================================================
+  //        MÉTODOS ALINEADOS AL DIAGRAMA DE CLASES
+  // =========================================================
+
+  // 1. listarEjercicios(): List - Recupera las rutinas del LocalStorage
+  const listarEjercicios = () => {
     const stored = JSON.parse(localStorage.getItem("misEjercicios")) || [];
     setExercises(stored);
+    return stored;
+  };
+
+  // Cargar datos al iniciar el componente
+  useEffect(() => {
+    listarEjercicios();
   }, []);
 
+  // Persistir cambios en LocalStorage
   const saveToStorage = (newList) => {
     setExercises(newList);
     localStorage.setItem("misEjercicios", JSON.stringify(newList));
   };
 
-  // Abrir formulario
+  // 2. agregarEjercicio(): void - Inserta una nueva rutina
+  const agregarEjercicio = () => {
+    const updatedList = [...exercises, formData];
+    saveToStorage(updatedList);
+    setCurrentView("list");
+  };
+
+  // 3. editarEjercicio(Ejercicio): void - Actualiza la rutina en el índice correspondiente
+  const editarEjercicio = () => {
+    const updatedList = [...exercises];
+    updatedList[editingIndex] = formData;
+    saveToStorage(updatedList);
+    setEditingIndex(null);
+    setCurrentView("list");
+  };
+
+  // 4. eliminarEjercicio(Ejercicio): void - Remueve los elementos seleccionados
+  const eliminarEjercicio = () => {
+    const updatedList = exercises.filter((_, index) => !checkedIds.includes(index));
+    saveToStorage(updatedList);
+    setCheckedIds([]);
+    setDeleteMode(false);
+    setShowDeleteModal(false);
+  };
+
+  // 5. verDetalle(): void - Selecciona un ejercicio para inspeccionar sus atributos
+  const verDetalle = (ex, originalIndex) => {
+    setSelectedEx({ ...ex, index: originalIndex });
+    setCurrentView("detail");
+  };
+
+  // =========================================================
+  //               MANEJADORES DE LA INTERFAZ
+  // =========================================================
+
+  // Manejador del submit del formulario
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.nombre) {
+      window.alert("Por favor, ingresa al menos el nombre del ejercicio.");
+      return;
+    }
+
+    if (editingIndex !== null) {
+      editarEjercicio();
+    } else {
+      agregarEjercicio();
+    }
+  };
+
+  // Abrir formulario para agregar o editar
   const handleOpenForm = (index = null) => {
     if (index !== null) {
       setFormData(exercises[index]);
@@ -52,26 +113,7 @@ export default function Exercise() {
     setCurrentView("form");
   };
 
-  // Submit del formulario
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.nombre) {
-      window.alert("Por favor, ingresa al menos el nombre del ejercicio.");
-      return;
-    }
-
-    let updatedList = [...exercises];
-    if (editingIndex !== null) {
-      updatedList[editingIndex] = formData;
-    } else {
-      updatedList.push(formData);
-    }
-
-    saveToStorage(updatedList);
-    setCurrentView("list");
-  };
-
-  // Selección para borrar
+  // Selección/Deselección de checkboxes para eliminación
   const toggleCheck = (index) => {
     if (checkedIds.includes(index)) {
       setCheckedIds(checkedIds.filter(id => id !== index));
@@ -80,16 +122,7 @@ export default function Exercise() {
     }
   };
 
-  // Confirmar eliminación
-  const executeDelete = () => {
-    const updatedList = exercises.filter((_, index) => !checkedIds.includes(index));
-    saveToStorage(updatedList);
-    setCheckedIds([]);
-    setDeleteMode(false);
-    setShowDeleteModal(false);
-  };
-
-  // Marcar como realizado
+  // Marcar/Desmarcar como realizado (Interactúa con el estado de cumplimiento)
   const toggleComplete = (index, e) => {
     e.stopPropagation();
     const updatedList = [...exercises];
@@ -109,7 +142,7 @@ export default function Exercise() {
     return matchesSearch;
   });
 
-  // Cálculos para los contadores y barra de progreso
+  // Contadores para progreso
   const totalCount = exercises.length;
   const completedCount = exercises.filter(e => e.completado).length;
   const pendingCount = totalCount - completedCount;
@@ -179,7 +212,7 @@ export default function Exercise() {
               )}
             </div>
 
-            {/* BARRA DE BÚSQUEDA CON BOTÓN DE LIMPIAR */}
+            {/* BARRA DE BÚSQUEDA */}
             <div className="mb-4 relative">
               <input
                 type="text"
@@ -246,7 +279,6 @@ export default function Exercise() {
                 </div>
               ) : (
                 filteredExercises.map((ex) => {
-                  // Buscar el índice real en el array principal de localStorage para evitar alterar el elemento equivocado al usar filtros
                   const originalIndex = exercises.findIndex(item => item === ex);
                   
                   return (
@@ -254,8 +286,7 @@ export default function Exercise() {
                       key={originalIndex}
                       onClick={() => {
                         if (!deleteMode) {
-                          setSelectedEx({ ...ex, index: originalIndex });
-                          setCurrentView("detail");
+                          verDetalle(ex, originalIndex);
                         }
                       }}
                       className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
@@ -321,7 +352,7 @@ export default function Exercise() {
           </section>
         )}
 
-        {/* Detalle */}
+        {/* Vista de Detalle */}
         {currentView === "detail" && selectedEx && (
           <section className="mx-auto max-w-xl">
             <button
@@ -359,7 +390,7 @@ export default function Exercise() {
           </section>
         )}
 
-        {/* Formulario */}
+        {/* Vista de Formulario */}
         {currentView === "form" && (
           <section className="mx-auto max-w-xl">
             <button
@@ -426,7 +457,7 @@ export default function Exercise() {
         )}
       </main>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmación de borrado */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 text-center shadow-soft ring-1 ring-plum-100 lg:p-8">
@@ -435,7 +466,7 @@ export default function Exercise() {
             </h3>
             <div className="flex gap-4">
               <button
-                onClick={executeDelete}
+                onClick={eliminarEjercicio}
                 className="flex-1 min-h-12 rounded-full bg-plum-700 font-extrabold text-white transition hover:bg-plum-800"
               >
                 SÍ
