@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "react-hot-toast"
-import Appointments from "./pages/Appointments"
+import CitasMedicas from "./pages/CitasMedicas"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
@@ -48,7 +48,7 @@ export default function App() {
 			<Route path="/forgot_password" element={<ForgotPassword />} />
 			<Route path="/register" element={<Register />} />
 			<Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-			<Route path="/dashboard/citas-medicas" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
+			<Route path="/dashboard/citas-medicas" element={<ProtectedRoute><CitasMedicas /></ProtectedRoute>} />
 			<Route
 				path="/dashboard/notificaciones"
 				element={<ProtectedRoute><Notifications asPage /></ProtectedRoute>}

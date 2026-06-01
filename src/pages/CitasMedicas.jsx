@@ -1,5 +1,4 @@
 import {
-  Bell,
   CalendarClock,
   CheckCircle2,
   ChevronLeft,
@@ -16,23 +15,19 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardMenu from "../components/DashboardMenu";
+import CitaMedica from "../models/CitasMedicas";
+import LocalStorageCitasMedicasRepository from "../repositories/LocalStorageCitasMedicasRepository";
 
-const STORAGE_KEY = "mimedicapp_appointments_v2";
-const LEGACY_SAMPLE_IDS = ["apt-001", "apt-002", "apt-003"];
+const citasMedicasRepository = new LocalStorageCitasMedicasRepository();
 
 const createEmptyForm = () => ({
-  doctor_name: "",
-  specialty: "",
-  location: "",
-  appointment_date: "",
-  notes: "",
-  has_reminder: true,
+  doctor: "",
+  especialidad: "",
+  ubicacion: "",
+  fecha_hora_cita: "",
+  notas: "",
+  tiene_recordatorio: false,
 });
-
-const sortByAppointmentDate = (appointments) =>
-  [...appointments].sort((firstAppointment, secondAppointment) => {
-    return new Date(firstAppointment.appointment_date) - new Date(secondAppointment.appointment_date);
-  });
 
 const formatAppointmentDate = (value) => {
   if (!value) {
@@ -48,84 +43,51 @@ const formatAppointmentDate = (value) => {
   }).format(new Date(value));
 };
 
-export default function Appointments() {
+export default function CitasMedicas() {
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState(() => {
-    const storedAppointments = window.localStorage.getItem(STORAGE_KEY);
-
-    if (!storedAppointments) {
-      return [];
-    }
-
-    try {
-      const parsedAppointments = JSON.parse(storedAppointments);
-
-      if (!Array.isArray(parsedAppointments)) {
-        return [];
-      }
-
-      return parsedAppointments
-        .filter((appointment) => !LEGACY_SAMPLE_IDS.includes(appointment.id))
-        .map((appointment) => ({
-          ...appointment,
-          is_completed: Boolean(appointment.is_completed),
-        }));
-    } catch {
-      return [];
-    }
-  });
+  const [citas, setCitas] = useState(() => citasMedicasRepository.listarCitas());
   const [formData, setFormData] = useState(createEmptyForm);
-  const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+  const [editingCitaId, setEditingCitaId] = useState(null);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
-  }, [appointments]);
+    citasMedicasRepository.guardarCitas(citas);
+  }, [citas]);
 
-  const pendingAppointments = appointments.filter((appointment) => !appointment.is_completed);
-  const completedAppointmentsCount = appointments.filter((appointment) => appointment.is_completed).length;
-  const nextAppointment = sortByAppointmentDate(pendingAppointments)[0];
-  const remindersCount = pendingAppointments.filter((appointment) => appointment.has_reminder).length;
-  const sortedAppointments = useMemo(() => sortByAppointmentDate(appointments), [appointments]);
+  const citasPendientes = citas.filter((cita) => !cita.asistida);
+  const cantidadCitasAsistidas = citas.filter((cita) => cita.asistida).length;
+  const proximaCita = CitaMedica.listarCitas(citasPendientes)[0];
+  const citasOrdenadas = useMemo(() => CitaMedica.listarCitas(citas), [citas]);
 
-  const handleSubmit = (event) => {
+  const agendarCita = (event) => {
     event.preventDefault();
 
-    const appointmentData = {
-      doctor_name: formData.doctor_name.trim(),
-      specialty: formData.specialty.trim(),
-      location: formData.location.trim(),
-      appointment_date: formData.appointment_date,
-      notes: formData.notes.trim(),
-      has_reminder: formData.has_reminder,
-      updated_at: new Date().toISOString(),
+    const datosCita = {
+      doctor: formData.doctor.trim(),
+      especialidad: formData.especialidad.trim(),
+      ubicacion: formData.ubicacion.trim(),
+      fecha_hora_cita: formData.fecha_hora_cita,
+      notas: formData.notas.trim(),
+      tiene_recordatorio: false,
     };
 
-    if (editingAppointmentId) {
-      setAppointments((currentAppointments) =>
-        sortByAppointmentDate(
-          currentAppointments.map((appointment) =>
-            appointment.id === editingAppointmentId
-              ? {
-                  ...appointment,
-                  ...appointmentData,
-                }
-              : appointment,
+    if (editingCitaId) {
+      setCitas((citasActuales) =>
+        CitaMedica.listarCitas(
+          citasActuales.map((cita) =>
+            cita.id === editingCitaId
+              ? new CitaMedica(cita).editarCita(datosCita)
+              : cita,
           ),
         ),
       );
-      setEditingAppointmentId(null);
+      setEditingCitaId(null);
       setFormData(createEmptyForm());
       return;
     }
 
-    const newAppointment = {
-      id: `apt-${Date.now()}`,
-      ...appointmentData,
-      is_completed: false,
-      created_at: new Date().toISOString(),
-    };
+    const nuevaCita = new CitaMedica(datosCita).agendarCita();
 
-    setAppointments((currentAppointments) => sortByAppointmentDate([...currentAppointments, newAppointment]));
+    setCitas((citasActuales) => CitaMedica.listarCitas([...citasActuales, nuevaCita]));
     setFormData(createEmptyForm());
   };
 
@@ -136,44 +98,41 @@ export default function Appointments() {
     }));
   };
 
-  const handleEditAppointment = (appointment) => {
-    setEditingAppointmentId(appointment.id);
+  const editarCita = (cita) => {
+    const detalleCita = new CitaMedica(cita).verDetalle();
+    setEditingCitaId(cita.id);
     setFormData({
-      doctor_name: appointment.doctor_name,
-      specialty: appointment.specialty,
-      location: appointment.location,
-      appointment_date: appointment.appointment_date,
-      notes: appointment.notes,
-      has_reminder: appointment.has_reminder,
+      doctor: detalleCita.doctor,
+      especialidad: detalleCita.especialidad,
+      ubicacion: detalleCita.ubicacion,
+      fecha_hora_cita: detalleCita.fecha_hora_cita,
+      notas: detalleCita.notas,
+      tiene_recordatorio: false,
     });
   };
 
   const cancelEdit = () => {
-    setEditingAppointmentId(null);
+    setEditingCitaId(null);
     setFormData(createEmptyForm());
   };
 
-  const deleteAppointment = (appointmentId) => {
-    setAppointments((currentAppointments) =>
-      currentAppointments.filter((appointment) => appointment.id !== appointmentId),
-    );
+  const eliminarCita = (cita) => {
+    setCitas((citasActuales) => new CitaMedica(cita).eliminarCita(citasActuales));
 
-    if (editingAppointmentId === appointmentId) {
+    if (editingCitaId === cita.id) {
       cancelEdit();
     }
   };
 
-  const toggleCompletedAppointment = (appointmentId) => {
-    setAppointments((currentAppointments) =>
-      sortByAppointmentDate(
-        currentAppointments.map((appointment) =>
-          appointment.id === appointmentId
-            ? {
-                ...appointment,
-                is_completed: !appointment.is_completed,
-                updated_at: new Date().toISOString(),
-              }
-            : appointment,
+  const cambiarAsistenciaCita = (citaSeleccionada) => {
+    setCitas((citasActuales) =>
+      CitaMedica.listarCitas(
+        citasActuales.map((cita) =>
+          cita.id === citaSeleccionada.id
+            ? citaSeleccionada.asistida
+              ? new CitaMedica(cita).reabrirCita()
+              : new CitaMedica(cita).marcarComoAsistida()
+            : cita,
         ),
       ),
     );
@@ -209,32 +168,32 @@ export default function Appointments() {
 
               <div className="grid grid-cols-2 gap-3 sm:min-w-64">
                 <div className="rounded-3xl bg-plum-50 p-4 ring-1 ring-plum-100">
-                  <p className="text-3xl font-black text-plum-800">{pendingAppointments.length}</p>
+                  <p className="text-3xl font-black text-plum-800">{citasPendientes.length}</p>
                   <p className="text-sm font-bold text-plum-500">Pendientes</p>
                 </div>
                 <div className="rounded-3xl bg-lotus-100 p-4">
-                  <p className="text-3xl font-black text-lotus-500">{completedAppointmentsCount}</p>
+                  <p className="text-3xl font-black text-lotus-500">{cantidadCitasAsistidas}</p>
                   <p className="text-sm font-bold text-plum-600">Asistidas</p>
                 </div>
               </div>
             </div>
 
-            {nextAppointment && (
+            {proximaCita && (
               <div className="mt-7 rounded-3xl bg-plum-600 p-5 text-white">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-bold uppercase tracking-wide text-plum-100">Proxima cita</p>
-                  <h2 className="mt-1 text-2xl font-black">{nextAppointment.doctor_name}</h2>
-                  <p className="mt-2 font-semibold text-plum-100">{nextAppointment.specialty}</p>
+                  <h2 className="mt-1 text-2xl font-black">{proximaCita.doctor}</h2>
+                  <p className="mt-2 font-semibold text-plum-100">{proximaCita.especialidad}</p>
                 </div>
                 <div className="rounded-3xl bg-white/12 px-4 py-3">
                   <p className="flex items-center gap-2 text-lg font-black">
                     <Clock3 className="h-5 w-5 text-lotus-400" aria-hidden="true" />
-                    {formatAppointmentDate(nextAppointment.appointment_date)}
+                    {formatAppointmentDate(proximaCita.fecha_hora_cita)}
                   </p>
                   <p className="mt-2 flex items-start gap-2 text-sm font-semibold text-plum-100">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lotus-400" aria-hidden="true" />
-                    {nextAppointment.location}
+                    {proximaCita.ubicacion}
                   </p>
                 </div>
               </div>
@@ -242,17 +201,17 @@ export default function Appointments() {
             )}
           </section>
 
-          <form className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8" onSubmit={handleSubmit}>
+          <form className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8" onSubmit={agendarCita}>
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-black uppercase tracking-wide text-lotus-500">
-                  {editingAppointmentId ? "Editar cita" : "Nueva cita"}
+                  {editingCitaId ? "Editar cita" : "Nueva cita"}
                 </p>
                 <h2 className="mt-1 text-2xl font-black text-plum-800">
-                  {editingAppointmentId ? "Actualizar atencion" : "Registrar atencion"}
+                  {editingCitaId ? "Actualizar atencion" : "Registrar atencion"}
                 </h2>
               </div>
-              {editingAppointmentId && (
+              {editingCitaId && (
                 <button
                   type="button"
                   onClick={cancelEdit}
@@ -269,8 +228,8 @@ export default function Appointments() {
                 Doctor
                 <input
                   required
-                  value={formData.doctor_name}
-                  onChange={(event) => updateField("doctor_name", event.target.value)}
+                  value={formData.doctor}
+                  onChange={(event) => updateField("doctor", event.target.value)}
                   className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                   placeholder="Nombre del doctor"
                 />
@@ -281,8 +240,8 @@ export default function Appointments() {
                   Especialidad
                   <input
                     required
-                    value={formData.specialty}
-                    onChange={(event) => updateField("specialty", event.target.value)}
+                    value={formData.especialidad}
+                    onChange={(event) => updateField("especialidad", event.target.value)}
                     className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                     placeholder="Cardiologia"
                   />
@@ -293,8 +252,8 @@ export default function Appointments() {
                   <input
                     required
                     type="datetime-local"
-                    value={formData.appointment_date}
-                    onChange={(event) => updateField("appointment_date", event.target.value)}
+                    value={formData.fecha_hora_cita}
+                    onChange={(event) => updateField("fecha_hora_cita", event.target.value)}
                     className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                   />
                 </label>
@@ -304,8 +263,8 @@ export default function Appointments() {
                 Ubicacion
                 <input
                   required
-                  value={formData.location}
-                  onChange={(event) => updateField("location", event.target.value)}
+                  value={formData.ubicacion}
+                  onChange={(event) => updateField("ubicacion", event.target.value)}
                   className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                   placeholder="Clinica, hospital o enlace virtual"
                 />
@@ -314,23 +273,10 @@ export default function Appointments() {
               <label className="grid gap-2 text-sm font-black text-plum-700">
                 Notas
                 <textarea
-                  value={formData.notes}
-                  onChange={(event) => updateField("notes", event.target.value)}
+                  value={formData.notas}
+                  onChange={(event) => updateField("notas", event.target.value)}
                   className="min-h-28 resize-none rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 py-3 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                   placeholder="Indicaciones, documentos o sintomas importantes"
-                />
-              </label>
-
-              <label className="flex min-h-14 items-center justify-between gap-4 rounded-2xl bg-plum-50 px-4 ring-1 ring-plum-100">
-                <span className="flex items-center gap-3 text-sm font-black text-plum-700">
-                  <Bell className="h-5 w-5 text-lotus-500" aria-hidden="true" />
-                  Activar recordatorio
-                </span>
-                <input
-                  type="checkbox"
-                  checked={formData.has_reminder}
-                  onChange={(event) => updateField("has_reminder", event.target.checked)}
-                  className="h-5 w-5 accent-lotus-500"
                 />
               </label>
 
@@ -338,12 +284,12 @@ export default function Appointments() {
                 type="submit"
                 className="mt-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-lotus-500 px-5 text-base font-black text-white transition hover:bg-lotus-400"
               >
-                {editingAppointmentId ? (
+                {editingCitaId ? (
                   <Edit3 className="h-5 w-5" aria-hidden="true" />
                 ) : (
                   <Plus className="h-5 w-5" aria-hidden="true" />
                 )}
-                {editingAppointmentId ? "Actualizar cita" : "Guardar cita"}
+                {editingCitaId ? "Actualizar cita" : "Guardar cita"}
               </button>
             </div>
           </form>
@@ -358,11 +304,11 @@ export default function Appointments() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {sortedAppointments.map((appointment) => (
+            {citasOrdenadas.map((cita) => (
               <article
-                key={appointment.id}
+                key={cita.id}
                 className={`flex min-h-72 flex-col rounded-3xl border-2 p-5 shadow-sm transition hover:shadow-soft ${
-                  appointment.is_completed
+                  cita.asistida
                     ? "border-mint-100 bg-mint-100/50 hover:border-mint-500"
                     : "border-plum-100 bg-white hover:border-skysoft-500"
                 }`}
@@ -372,40 +318,34 @@ export default function Appointments() {
                     <Stethoscope className="h-8 w-8" aria-hidden="true" />
                   </span>
                   <div className="flex flex-wrap justify-end gap-2">
-                    {appointment.is_completed && (
+                    {cita.asistida && (
                       <span className="inline-flex items-center gap-2 rounded-full bg-mint-100 px-3 py-2 text-xs font-black text-mint-500">
                         <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                         Asistida
                       </span>
                     )}
-                    {appointment.has_reminder && !appointment.is_completed && (
-                      <span className="inline-flex items-center gap-2 rounded-full bg-lotus-100 px-3 py-2 text-xs font-black text-lotus-500">
-                        <Bell className="h-4 w-4" aria-hidden="true" />
-                        Aviso
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                <h3 className="text-xl font-black leading-tight text-plum-800">{appointment.doctor_name}</h3>
+                <h3 className="text-xl font-black leading-tight text-plum-800">{cita.doctor}</h3>
                 <p className="mt-2 flex items-center gap-2 text-sm font-bold text-plum-600">
                   <UserRound className="h-4 w-4 text-skysoft-500" aria-hidden="true" />
-                  {appointment.specialty}
+                  {cita.especialidad}
                 </p>
 
                 <div className="mt-5 grid gap-3 text-sm font-semibold text-plum-600">
                   <p className="flex items-start gap-2">
                     <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
-                    {formatAppointmentDate(appointment.appointment_date)}
+                    {formatAppointmentDate(cita.fecha_hora_cita)}
                   </p>
                   <p className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
-                    {appointment.location}
+                    {cita.ubicacion}
                   </p>
-                  {appointment.notes && (
+                  {cita.notas && (
                     <p className="flex items-start gap-2">
                       <NotebookText className="mt-0.5 h-4 w-4 shrink-0 text-lotus-500" aria-hidden="true" />
-                      {appointment.notes}
+                      {cita.notas}
                     </p>
                   )}
                 </div>
@@ -413,7 +353,7 @@ export default function Appointments() {
                 <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-3">
                   <button
                     type="button"
-                    onClick={() => handleEditAppointment(appointment)}
+                    onClick={() => editarCita(cita)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-plum-50 px-3 text-sm font-black text-plum-700 transition hover:bg-plum-100"
                   >
                     <Edit3 className="h-4 w-4" aria-hidden="true" />
@@ -421,15 +361,15 @@ export default function Appointments() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggleCompletedAppointment(appointment.id)}
+                    onClick={() => cambiarAsistenciaCita(cita)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-mint-100 px-3 text-sm font-black text-mint-500 transition hover:bg-mint-500 hover:text-white"
                   >
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    {appointment.is_completed ? "Reabrir" : "Asistida"}
+                    {cita.asistida ? "Reabrir" : "Asistida"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => deleteAppointment(appointment.id)}
+                    onClick={() => eliminarCita(cita)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-lotus-100 px-3 text-sm font-black text-lotus-500 transition hover:bg-lotus-500 hover:text-white"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -440,7 +380,7 @@ export default function Appointments() {
             ))}
           </div>
 
-          {sortedAppointments.length === 0 && (
+          {citasOrdenadas.length === 0 && (
             <div className="mt-6 rounded-3xl border-2 border-dashed border-plum-100 bg-plum-50 p-8 text-center">
               <p className="text-lg font-black text-plum-800">No hay citas para mostrar</p>
               <p className="mt-2 font-semibold text-plum-600">Registra una nueva cita para verla en tu agenda.</p>
