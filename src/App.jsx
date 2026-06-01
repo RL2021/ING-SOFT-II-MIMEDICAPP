@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom"
+import { Toaster } from "react-hot-toast"
 import Appointments from "./pages/Appointments"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
@@ -9,7 +10,9 @@ import Exercise from "./pages/Exercise"
 import ForgotPassword from "./pages/ForgotPassword"
 import Foods from "./pages/Foods"
 import { useAuth } from "./context/AuthContext"
-import UpdatePassword from "./pages/UpdatePassword";
+import UpdatePassword from "./pages/UpdatePassword"
+import Notifications from "./components/Notifications"
+import NotificationListener from "./components/NotificationListener"
 
 
 function ProtectedRoute({ children }) {
@@ -27,11 +30,18 @@ function ProtectedRoute({ children }) {
 		return <Navigate to="/login" replace />
 	}
 
-	return children
+	return (
+		<>
+			<NotificationListener />
+			{children}
+		</>
+	)
 }
 
 export default function App() {
 	return (
+		<>
+		<Toaster position="top-right" toastOptions={{ style: { borderRadius: '1rem', fontFamily: 'inherit' } }} />
 		<Routes>
 			<Route path="/" element={<Navigate to="/login" replace />} />
 			<Route path="/login" element={<Login />} />
@@ -41,7 +51,7 @@ export default function App() {
 			<Route path="/dashboard/citas-medicas" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
 			<Route
 				path="/dashboard/notificaciones"
-				element={<ProtectedRoute><Appointments /></ProtectedRoute>}
+				element={<ProtectedRoute><Notifications asPage /></ProtectedRoute>}
 			/>
 			<Route path="/dashboard/medicamentos" element={<ProtectedRoute><Medicines /></ProtectedRoute>} />
 			<Route path="/dashboard/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
@@ -49,8 +59,8 @@ export default function App() {
 			<Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
 			<Route path="/update-password" element={<UpdatePassword />} />
 
-
 			<Route path="*" element={<Navigate to="/login" replace />} />
 		</Routes>
+		</>
 	)
 }
