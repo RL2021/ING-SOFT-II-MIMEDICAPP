@@ -19,6 +19,7 @@ export default function Foods() {
   const [selectedFood, setSelectedFood] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
 
   // Flujo
   const [currentView, setCurrentView] = useState("list");
@@ -45,9 +46,20 @@ export default function Foods() {
   };
 
   // Filtro de búsqueda
-  const filteredFoods = foods.filter((food) =>
-    food.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFoods = foods.filter((food) => {
+  const matchesSearch = food.name
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
+
+  const matchesFilter =
+    filterType === "all"
+      ? true
+      : filterType === "recommended"
+      ? food.recommended
+      : !food.recommended;
+
+  return matchesSearch && matchesFilter;
+  });
 
   // Abrir formulario
   const handleOpenForm = (index = null) => {
@@ -178,6 +190,46 @@ export default function Foods() {
                 className="w-full h-14 rounded-2xl border-2 border-plum-100 bg-white px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
               />
             </div>
+
+            {/* FILTRO */}
+            <div className="mb-6 flex flex-wrap gap-2">
+              <button
+                onClick={() => setFilterType("all")}
+                className={`rounded-full px-4 py-2 font-bold transition ${
+                  filterType === "all"
+                    ? "bg-plum-700 text-white"
+                    : "bg-white text-plum-700 border border-plum-200"
+                }`}
+              >
+                Todos
+              </button>
+
+              <button
+                onClick={() => setFilterType("recommended")}
+                className={`rounded-full px-4 py-2 font-bold transition ${
+                  filterType === "recommended"
+                    ? "bg-green-600 text-white"
+                    : "bg-white text-plum-700 border border-plum-200"
+                }`}
+              >
+                Recomendados
+              </button>
+
+              <button
+                onClick={() => setFilterType("notRecommended")}
+                className={`rounded-full px-4 py-2 font-bold transition ${
+                  filterType === "notRecommended"
+                    ? "bg-red-500 text-white"
+                    : "bg-white text-plum-700 border border-plum-200"
+                }`}
+              >
+                No recomendados
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm font-semibold text-plum-500">
+              Mostrando {filteredFoods.length} alimentos
+            </p>
 
             {/* LISTA */}
             <div className="grid gap-4">
