@@ -57,9 +57,11 @@ export default function CitasMedicas() {
   const navigate = useNavigate();
   const [citas, setCitas] = useState(() => citasMedicasRepository.listarCitas());
   const [formData, setFormData] = useState(createEmptyForm);
-  const [editingCitaId, setEditingCitaId] = useState(null);
+  const [editingCita, setEditingCita] = useState(null);
+  const [editFormData, setEditFormData] = useState(createEmptyForm);
   const [feedback, setFeedback] = useState(null);
   const [formError, setFormError] = useState("");
+  const [editFormError, setEditFormError] = useState("");
   const [statusFilter, setStatusFilter] = useState("todas");
   const [searchTerm, setSearchTerm] = useState("");
   const [citaToDelete, setCitaToDelete] = useState(null);
@@ -130,22 +132,6 @@ export default function CitasMedicas() {
       return;
     }
 
-    if (editingCitaId) {
-      setCitas((citasActuales) =>
-        CitaMedica.listarCitas(
-          citasActuales.map((cita) =>
-            cita.id === editingCitaId
-              ? new CitaMedica(cita).editarCita(datosCita)
-              : cita,
-          ),
-        ),
-      );
-      setEditingCitaId(null);
-      setFormData(createEmptyForm());
-      setFeedback({ type: "success", message: "Cita actualizada correctamente." });
-      return;
-    }
-
     const nuevaCita = new CitaMedica(datosCita).agendarCita();
 
     setCitas((citasActuales) => CitaMedica.listarCitas([...citasActuales, nuevaCita]));
@@ -160,11 +146,19 @@ export default function CitasMedicas() {
     }));
   };
 
+  const updateEditField = (field, value) => {
+    setEditFormData((currentData) => ({
+      ...currentData,
+      [field]: value,
+    }));
+  };
+
   const editarCita = (cita) => {
     const detalleCita = new CitaMedica(cita).verDetalle();
     setFormError("");
-    setEditingCitaId(cita.id);
-    setFormData({
+    setEditFormError("");
+    setEditingCita(cita);
+    setEditFormData({
       doctor: detalleCita.doctor,
       especialidad: detalleCita.especialidad,
       ubicacion: detalleCita.ubicacion,
@@ -175,9 +169,49 @@ export default function CitasMedicas() {
   };
 
   const cancelEdit = () => {
-    setEditingCitaId(null);
-    setFormData(createEmptyForm());
-    setFormError("");
+    setEditingCita(null);
+    setEditFormData(createEmptyForm());
+    setEditFormError("");
+  };
+
+  const actualizarCita = (event) => {
+    event.preventDefault();
+    setEditFormError("");
+
+    if (!editingCita) {
+      return;
+    }
+
+    const datosCita = {
+      doctor: editFormData.doctor.trim(),
+      especialidad: editFormData.especialidad.trim(),
+      ubicacion: editFormData.ubicacion.trim(),
+      fecha_hora_cita: editFormData.fecha_hora_cita,
+      notas: editFormData.notas.trim(),
+      tiene_recordatorio: false,
+    };
+
+    if (!datosCita.doctor || !datosCita.especialidad || !datosCita.ubicacion || !datosCita.fecha_hora_cita) {
+      setEditFormError("Completa doctor, especialidad, ubicacion y fecha para actualizar la cita.");
+      return;
+    }
+
+    if (isPastAppointment(datosCita.fecha_hora_cita)) {
+      setEditFormError("La fecha y hora de la cita no puede ser anterior al momento actual.");
+      return;
+    }
+
+    setCitas((citasActuales) =>
+      CitaMedica.listarCitas(
+        citasActuales.map((cita) =>
+          cita.id === editingCita.id
+            ? new CitaMedica(cita).editarCita(datosCita)
+            : cita,
+        ),
+      ),
+    );
+    setFeedback({ type: "success", message: "Cita actualizada correctamente." });
+    cancelEdit();
   };
 
   const confirmarEliminacion = () => {
@@ -187,7 +221,7 @@ export default function CitasMedicas() {
 
     setCitas((citasActuales) => new CitaMedica(citaToDelete).eliminarCita(citasActuales));
 
-    if (editingCitaId === citaToDelete.id) {
+    if (editingCita?.id === citaToDelete.id) {
       cancelEdit();
     }
 
@@ -372,29 +406,13 @@ export default function CitasMedicas() {
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-black uppercase tracking-wide text-lotus-500">
-                  {editingCitaId ? "Editar cita" : "Nueva cita"}
+                  Nueva cita
                 </p>
                 <h2 className="mt-1 text-2xl font-black text-plum-800">
-                  {editingCitaId ? "Actualizar atencion" : "Registrar atencion"}
+                  Registrar atencion
                 </h2>
               </div>
-              {editingCitaId && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  aria-label="Cancelar edicion"
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-plum-100 text-plum-700 transition hover:bg-plum-200"
-                >
-                  <X className="h-6 w-6" aria-hidden="true" />
-                </button>
-              )}
             </div>
-
-            {editingCitaId && (
-              <div className="mb-5 rounded-2xl bg-plum-50 p-4 text-sm font-bold text-plum-700 ring-1 ring-plum-100">
-                Estas editando una cita existente. Guarda los cambios o cancela la edicion para registrar una nueva cita.
-              </div>
-            )}
 
             {formError && (
               <div className="mb-5 rounded-2xl bg-lotus-100 px-4 py-3 text-sm font-black text-lotus-500">
@@ -469,23 +487,9 @@ export default function CitasMedicas() {
                 type="submit"
                 className="mt-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-lotus-500 px-5 text-base font-black text-white transition hover:bg-lotus-400"
               >
-                {editingCitaId ? (
-                  <Edit3 className="h-5 w-5" aria-hidden="true" />
-                ) : (
-                  <Plus className="h-5 w-5" aria-hidden="true" />
-                )}
-                {editingCitaId ? "Actualizar cita" : "Guardar cita"}
+                <Plus className="h-5 w-5" aria-hidden="true" />
+                Guardar cita
               </button>
-              {editingCitaId && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-plum-200 bg-white px-5 text-base font-black text-plum-700 transition hover:bg-plum-50"
-                >
-                  <X className="h-5 w-5" aria-hidden="true" />
-                  Cancelar edicion
-                </button>
-              )}
             </div>
           </form>
         </div>
@@ -539,7 +543,7 @@ export default function CitasMedicas() {
                   </div>
                 ) : (
                   <p className="rounded-2xl bg-plum-50 p-4 text-sm font-bold text-plum-500">
-                    No hay citas proximas con los filtros actuales.
+                    No hay citas proximas.
                   </p>
                 )}
               </div>
@@ -552,7 +556,7 @@ export default function CitasMedicas() {
                   </div>
                 ) : (
                   <p className="rounded-2xl bg-plum-50 p-4 text-sm font-bold text-plum-500">
-                    No hay citas pasadas con los filtros actuales.
+                    No hay citas pasadas.
                   </p>
                 )}
               </div>
@@ -568,8 +572,8 @@ export default function CitasMedicas() {
 
           {citas.length > 0 && citasFiltradas.length === 0 && (
             <div className="mt-6 rounded-3xl border-2 border-dashed border-plum-100 bg-plum-50 p-8 text-center">
-              <p className="text-lg font-black text-plum-800">No encontramos citas con esos filtros</p>
-              <p className="mt-2 font-semibold text-plum-600">Prueba cambiando el estado o el texto de busqueda.</p>
+              <p className="text-lg font-black text-plum-800">No se encontraron citas</p>
+              <p className="mt-2 font-semibold text-plum-600">Seleccione otra opción o cambie el texto de busqueda.</p>
             </div>
           )}
         </section>
@@ -601,6 +605,115 @@ export default function CitasMedicas() {
               <p><span className="font-black text-plum-800">Notas:</span> {selectedCitaDetalle.notas || "Sin notas registradas"}</p>
             </div>
           </section>
+        </div>
+      )}
+
+      {editingCita && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/45 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={actualizarCita}
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black uppercase tracking-wide text-lotus-500">Editar cita</p>
+                <h2 className="mt-1 text-2xl font-black text-plum-800">Actualizar atencion</h2>
+                <p className="mt-2 text-sm font-semibold text-plum-500">
+                  Modifica los datos necesarios y guarda los cambios.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-plum-50 text-plum-700 transition hover:bg-plum-100"
+                aria-label="Cerrar edicion"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {editFormError && (
+              <div className="mb-5 rounded-2xl bg-lotus-100 px-4 py-3 text-sm font-black text-lotus-500">
+                {editFormError}
+              </div>
+            )}
+
+            <div className="grid gap-4">
+              <label className="grid gap-2 text-sm font-black text-plum-700">
+                Doctor
+                <input
+                  required
+                  value={editFormData.doctor}
+                  onChange={(event) => updateEditField("doctor", event.target.value)}
+                  className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
+                  placeholder="Nombre del doctor"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-black text-plum-700">
+                  Especialidad
+                  <input
+                    required
+                    value={editFormData.especialidad}
+                    onChange={(event) => updateEditField("especialidad", event.target.value)}
+                    className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
+                    placeholder="Cardiologia"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-black text-plum-700">
+                  Fecha y hora
+                  <input
+                    required
+                    type="datetime-local"
+                    value={editFormData.fecha_hora_cita}
+                    onChange={(event) => updateEditField("fecha_hora_cita", event.target.value)}
+                    className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
+                  />
+                </label>
+              </div>
+
+              <label className="grid gap-2 text-sm font-black text-plum-700">
+                Ubicacion
+                <input
+                  required
+                  value={editFormData.ubicacion}
+                  onChange={(event) => updateEditField("ubicacion", event.target.value)}
+                  className="min-h-12 rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
+                  placeholder="Clinica, hospital o enlace virtual"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-black text-plum-700">
+                Notas
+                <textarea
+                  value={editFormData.notas}
+                  onChange={(event) => updateEditField("notas", event.target.value)}
+                  className="min-h-28 resize-none rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 py-3 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
+                  placeholder="Indicaciones, documentos o sintomas importantes"
+                />
+              </label>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-plum-200 bg-white px-5 text-base font-black text-plum-700 transition hover:bg-plum-50"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-lotus-500 px-5 text-base font-black text-white transition hover:bg-lotus-400"
+                >
+                  <Edit3 className="h-5 w-5" aria-hidden="true" />
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
 
