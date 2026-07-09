@@ -47,6 +47,7 @@ const otherModules = [
     description: "Consulta un resumen basico de tu salud.",
     icon: ClipboardList,
     accent: "bg-skysoft-100 text-plum-700",
+    path: "/dashboard/reportes",
   },
   {
     title: "Configuracion",
