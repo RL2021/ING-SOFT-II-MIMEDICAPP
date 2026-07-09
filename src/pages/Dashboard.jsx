@@ -42,21 +42,21 @@ const modules = [
 ]
 
 const otherModules = [
-	{
-		title: "Reportes",
-		description: "Consulta un resumen basico de tu salud.",
-		icon: ClipboardList,
-		accent: "bg-skysoft-100 text-plum-700",
-		path: "/dashboard/report",
-	},
-	{
-		title: "Configuracion",
-		description: "Administra tus preferencias y cuenta.",
-		icon: Settings,
-		accent: "bg-lotus-100 text-plum-700",
-		path: "/dashboard/configuracion",
-	},
-]
+  {
+    title: "Reportes",
+    description: "Consulta un resumen basico de tu salud.",
+    icon: ClipboardList,
+    accent: "bg-skysoft-100 text-plum-700",
+    path: "/dashboard/reportes",
+  },
+  {
+    title: "Configuracion",
+    description: "Administra tus preferencias y cuenta.",
+    icon: Settings,
+    accent: "bg-lotus-100 text-plum-700",
+    path: "/dashboard/configuracion",
+  },
+];
 
 export default function Dashboard() {
 	const navigate = useNavigate()
