@@ -18,13 +18,11 @@
 //  Exported as a Singleton so the entire app shares one engine instance.
 
 import { RecordatorioMedicamentoStrategy } from './RecordatorioMedicamentoStrategy';
-import { RecordatorioCitaMedicaStrategy }  from './RecordatorioCitaMedicaStrategy';
 import { RecordatorioEjercicioStrategy }   from './RecordatorioEjercicioStrategy';
 
 // ─── Claves de localStorage ───────────────────────────────────────────────────
 const NOTIFS_KEY       = 'mimedicapp_notificaciones';
 const MEDS_KEY         = 'misMedicinas';
-const APPOINTMENTS_KEY = 'mimedicapp_appointments_v2';
 const EXERCISES_KEY    = 'misEjercicios';
 
 // ─── Helpers de acceso a localStorage ────────────────────────────────────────
@@ -46,10 +44,6 @@ class NotificationEngine {
       medicamento: {
         strategy:    new RecordatorioMedicamentoStrategy(),
         cargarDatos: () => leer(MEDS_KEY),
-      },
-      cita: {
-        strategy:    new RecordatorioCitaMedicaStrategy(),
-        cargarDatos: () => leer(APPOINTMENTS_KEY),
       },
       ejercicio: {
         strategy:    new RecordatorioEjercicioStrategy(),

@@ -6,4 +6,16 @@ export default class CitasMedicasRepository {
   guardarCitas() {
     throw new Error("El metodo guardarCitas debe ser implementado.");
   }
+
+  crearCita() {
+    throw new Error("El metodo crearCita debe ser implementado.");
+  }
+
+  actualizarCita() {
+    throw new Error("El metodo actualizarCita debe ser implementado.");
+  }
+
+  eliminarCita() {
+    throw new Error("El metodo eliminarCita debe ser implementado.");
+  }
 }
