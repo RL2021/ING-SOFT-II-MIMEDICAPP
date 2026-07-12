@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import DashboardMenu from "../components/DashboardMenu";
+import { supabase } from "../lib/supabase";
 
 export default function Foods() {
   const navigate = useNavigate();
@@ -17,9 +18,11 @@ export default function Foods() {
   // Estados
   const [foods, setFoods] = useState([]);
   const [selectedFood, setSelectedFood] = useState(null);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingFoodId, setEditingFoodId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Flujo
   const [currentView, setCurrentView] = useState("list");
@@ -34,38 +37,72 @@ export default function Foods() {
     recommended: true,
   });
 
-  // LocalStorage
+  // Cargar usuario y alimentos desde Supabase
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("foods")) || [];
-    setFoods(stored);
-  }, []);
+    const loadFoods = async () => {
+      try {
+        setLoading(true);
 
-  const saveToStorage = (newList) => {
-    setFoods(newList);
-    localStorage.setItem("foods", JSON.stringify(newList));
-  };
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) throw userError;
+
+        if (!user) {
+          navigate("/login");
+          return;
+        }
+
+        setUserId(user.id);
+
+        const { data, error } = await supabase
+          .from("foods")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        setFoods(data || []);
+      } catch (error) {
+        console.error("Error al cargar alimentos:", error);
+        window.alert("No se pudieron cargar los alimentos.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFoods();
+  }, [navigate]);
 
   // Filtro de búsqueda
   const filteredFoods = foods.filter((food) => {
-  const matchesSearch = food.name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+    const matchesSearch = food.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
-  const matchesFilter =
-    filterType === "all"
-      ? true
-      : filterType === "recommended"
-      ? food.recommended
-      : !food.recommended;
+    const matchesFilter =
+      filterType === "all"
+        ? true
+        : filterType === "recommended"
+        ? food.recommended
+        : !food.recommended;
 
-  return matchesSearch && matchesFilter;
+    return matchesSearch && matchesFilter;
   });
 
   // Abrir formulario
-  const handleOpenForm = (index = null) => {
-    if (index !== null) {
-      setFormData(foods[index]);
-      setEditingIndex(index);
+  const handleOpenForm = (food = null) => {
+    if (food) {
+      setFormData({
+        name: food.name,
+        detail: food.detail || "",
+        recommended: food.recommended,
+      });
+
+      setEditingFoodId(food.id);
     } else {
       setFormData({
         name: "",
@@ -73,53 +110,99 @@ export default function Foods() {
         recommended: true,
       });
 
-      setEditingIndex(null);
+      setEditingFoodId(null);
     }
 
     setCurrentView("form");
   };
 
-  // Guardar
-  const handleFormSubmit = (e) => {
+  // Guardar alimento
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name) {
+    if (!formData.name.trim()) {
       window.alert("Ingresa el nombre de la comida.");
       return;
     }
 
-    let updatedList = [...foods];
+    try {
+      if (editingFoodId !== null) {
+        const { data, error } = await supabase
+          .from("foods")
+          .update({
+            name: formData.name,
+            detail: formData.detail,
+            recommended: formData.recommended,
+          })
+          .eq("id", editingFoodId)
+          .eq("user_id", userId)
+          .select()
+          .single();
 
-    if (editingIndex !== null) {
-      updatedList[editingIndex] = formData;
-    } else {
-      updatedList.push(formData);
+        if (error) throw error;
+
+        setFoods((previousFoods) =>
+          previousFoods.map((food) =>
+            food.id === editingFoodId ? data : food
+          )
+        );
+      } else {
+        const { data, error } = await supabase
+          .from("foods")
+          .insert({
+            user_id: userId,
+            name: formData.name,
+            detail: formData.detail,
+            recommended: formData.recommended,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setFoods((previousFoods) => [data, ...previousFoods]);
+      }
+
+      setCurrentView("list");
+    } catch (error) {
+      console.error("Error al guardar alimento:", error);
+      window.alert("No se pudo guardar el alimento.");
     }
-
-    saveToStorage(updatedList);
-    setCurrentView("list");
   };
 
   // Checkbox eliminar
-  const toggleCheck = (index) => {
-    if (checkedIds.includes(index)) {
-      setCheckedIds(checkedIds.filter((id) => id !== index));
+  const toggleCheck = (id) => {
+    if (checkedIds.includes(id)) {
+      setCheckedIds(checkedIds.filter((foodId) => foodId !== id));
     } else {
-      setCheckedIds([...checkedIds, index]);
+      setCheckedIds([...checkedIds, id]);
     }
   };
 
-  // Eliminar
-  const executeDelete = () => {
-    const updatedList = foods.filter(
-      (_, index) => !checkedIds.includes(index)
-    );
+  // Eliminar alimentos
+  const executeDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from("foods")
+        .delete()
+        .in("id", checkedIds)
+        .eq("user_id", userId);
 
-    saveToStorage(updatedList);
+      if (error) throw error;
 
-    setCheckedIds([]);
-    setDeleteMode(false);
-    setShowDeleteModal(false);
+      setFoods((previousFoods) =>
+        previousFoods.filter(
+          (food) => !checkedIds.includes(food.id)
+        )
+      );
+
+      setCheckedIds([]);
+      setDeleteMode(false);
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error("Error al eliminar alimentos:", error);
+      window.alert("No se pudieron eliminar los alimentos.");
+    }
   };
 
   return (
@@ -233,7 +316,13 @@ export default function Foods() {
 
             {/* LISTA */}
             <div className="grid gap-4">
-              {filteredFoods.length === 0 ? (
+              {loading ? (
+                <div className="p-8 text-center">
+                  <p className="text-lg font-medium text-plum-500">
+                    Cargando alimentos...
+                  </p>
+                </div>
+              ) : filteredFoods.length === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
                   <p className="text-lg font-medium text-plum-500 italic">
                     {searchTerm
@@ -242,12 +331,12 @@ export default function Foods() {
                   </p>
                 </div>
               ) : (
-                filteredFoods.map((food, index) => (
+                filteredFoods.map((food) => (
                   <div
-                    key={index}
+                    key={food.id}
                     onClick={() => {
                       if (!deleteMode) {
-                        setSelectedFood({ ...food, index });
+                        setSelectedFood(food);
                         setCurrentView("detail");
                       }
                     }}
@@ -261,8 +350,8 @@ export default function Foods() {
                       {deleteMode && (
                         <input
                           type="checkbox"
-                          checked={checkedIds.includes(index)}
-                          onChange={() => toggleCheck(index)}
+                          checked={checkedIds.includes(food.id)}
+                          onChange={() => toggleCheck(food.id)}
                           onClick={(e) => e.stopPropagation()}
                           className="h-5 w-5 rounded accent-lotus-500"
                         />
@@ -295,7 +384,7 @@ export default function Foods() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenForm(index);
+                          handleOpenForm(food);
                         }}
                         className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
                       >
@@ -348,6 +437,7 @@ export default function Foods() {
                   <span className="font-bold text-plum-700">
                     Recomendable
                   </span>
+
                   <span className="font-medium text-plum-600">
                     {selectedFood.recommended ? "Sí" : "No"}
                   </span>
@@ -356,7 +446,7 @@ export default function Foods() {
 
               <div className="mt-8 flex gap-3">
                 <button
-                  onClick={() => handleOpenForm(selectedFood.index)}
+                  onClick={() => handleOpenForm(selectedFood)}
                   className="flex-1 min-h-12 rounded-full border-2 border-plum-700 bg-white text-plum-700 font-extrabold transition hover:bg-plum-50"
                 >
                   Editar Información
@@ -383,7 +473,7 @@ export default function Foods() {
             >
               <div className="mb-6">
                 <h1 className="text-2xl font-black text-plum-800">
-                  {editingIndex !== null
+                  {editingFoodId !== null
                     ? "Editar comida"
                     : "Registrar comida"}
                 </h1>
@@ -433,7 +523,7 @@ export default function Foods() {
                   type="submit"
                   className="mt-4 min-h-14 rounded-full bg-plum-700 text-white font-extrabold"
                 >
-                  {editingIndex !== null ? "Actualizar" : "Agregar"}
+                  {editingFoodId !== null ? "Actualizar" : "Agregar"}
                 </button>
               </div>
             </form>
@@ -446,8 +536,10 @@ export default function Foods() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40">
           <div className="bg-white p-8 rounded-3xl">
             <h3>¿Está seguro que desea eliminar?</h3>
+
             <div className="flex gap-4 mt-4">
               <button onClick={executeDelete}>Sí</button>
+
               <button onClick={() => setShowDeleteModal(false)}>
                 Cancelar
               </button>
