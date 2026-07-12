@@ -14,6 +14,7 @@ import UpdatePassword from "./pages/UpdatePassword"
 import Notifications from "./components/Notifications"
 import NotificationListener from "./components/NotificationListener"
 import Reports from "./pages/Reports"
+import Report from "./pages/Report"
 
 
 function ProtectedRoute({ children }) {
@@ -58,7 +59,7 @@ export default function App() {
 			<Route path="/dashboard/configuracion" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 			<Route path="/dashboard/foods" element={<ProtectedRoute><Foods /></ProtectedRoute>} />
 			<Route path="/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
-			<Route path="/dashboard/reportes" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+			<Route path="/dashboard/reportes" element={<ProtectedRoute><Report /></ProtectedRoute>} />
 			<Route path="/update-password" element={<UpdatePassword />} />
 
 			<Route path="*" element={<Navigate to="/login" replace />} />
