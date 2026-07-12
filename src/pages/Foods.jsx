@@ -12,6 +12,8 @@ import {
 import DashboardMenu from "../components/DashboardMenu";
 import { supabase } from "../lib/supabase";
 
+import { filterFoods } from "../utils/filterFoods";
+
 export default function Foods() {
   const navigate = useNavigate();
 
@@ -77,21 +79,13 @@ export default function Foods() {
     loadFoods();
   }, [navigate]);
 
+  // Filtrar alimentos según su recomendación
+  const foodsByType = filterFoods(foods, filterType);
+
   // Filtro de búsqueda
-  const filteredFoods = foods.filter((food) => {
-    const matchesSearch = food.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    const matchesFilter =
-      filterType === "all"
-        ? true
-        : filterType === "recommended"
-        ? food.recommended
-        : !food.recommended;
-
-    return matchesSearch && matchesFilter;
-  });
+  const filteredFoods = foodsByType.filter((food) =>
+    food.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Abrir formulario
   const handleOpenForm = (food = null) => {
