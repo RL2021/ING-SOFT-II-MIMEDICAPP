@@ -20,6 +20,8 @@ describe("US-040 - Filtrado de alimentos", () => {
     },
   ];
 
+  // PRUEBAS UNITARIAS
+
   test("Debe mostrar solo los alimentos recomendados", () => {
     const result = filterFoods(foods, "recommended");
 
@@ -39,5 +41,26 @@ describe("US-040 - Filtrado de alimentos", () => {
 
     expect(result).toHaveLength(3);
     expect(result).toEqual(foods);
+  });
+
+  // PRUEBA DE CAJA NEGRA
+
+  test("Caja negra: filtra correctamente los alimentos recomendados", () => {
+    const result = filterFoods(foods, "recommended");
+
+    expect(result.map((food) => food.name)).toEqual([
+      "Manzana",
+      "Avena",
+    ]);
+  });
+
+  // PRUEBA DE CAJA BLANCA
+
+  test("Caja blanca: ejecuta la rama de alimentos no recomendados", () => {
+    const result = filterFoods(foods, "notRecommended");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].recommended).toBe(false);
+    expect(result[0].name).toBe("Gaseosa");
   });
 });
