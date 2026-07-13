@@ -17,9 +17,13 @@ import {
 import DashboardMenu from "../components/DashboardMenu"
 import { supabase } from "../lib/supabase"
 import Notifications from "../components/Notifications"
+import ReminderPreferences from "../components/ReminderPreferences"
+import { useAuth } from "../context/AuthContext"
+import { getReminderPreferences } from "../notifications/reminderRules"
 
 export default function Settings() {
 	const navigate = useNavigate()
+	const { user } = useAuth()
 
 	const [currentView, setCurrentView] = useState("menu")
 	const [profile, setProfile] = useState({
@@ -39,8 +43,12 @@ export default function Settings() {
 
 	// Notificaciones
 	const [notificationsEnabled, setNotificationsEnabled] = useState(
-		localStorage.getItem("notificationsEnabled") === "true",
+		getReminderPreferences(user).enabled,
 	)
+
+	useEffect(() => {
+		setNotificationsEnabled(getReminderPreferences(user).enabled)
+	}, [user])
 
 	// Cambiar contraseña
 	const [passwordForm, setPasswordForm] = useState({ nueva: "", repetir: "" })
@@ -53,10 +61,13 @@ export default function Settings() {
 	const [showLogoutModal, setShowLogoutModal] = useState(false)
 	const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-	const handleToggleNotifications = () => {
+	const handleToggleNotifications = async () => {
 		const next = !notificationsEnabled
-		setNotificationsEnabled(next)
-		localStorage.setItem("notificationsEnabled", String(next))
+		const preferences = { ...getReminderPreferences(user), enabled: next }
+		const { error } = await supabase.auth.updateUser({
+			data: { reminder_preferences: preferences },
+		})
+		if (!error) setNotificationsEnabled(next)
 	}
 
 	const handleProfileChange = (field, value) => {
@@ -332,7 +343,7 @@ export default function Settings() {
 							</h1>
 						</div>
 
-						<div className="rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100 lg:p-8 flex flex-col gap-6">
+						<div className="hidden">
 							{/* Toggle */}
 							<div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-plum-100 p-5">
 								<div>
@@ -380,12 +391,7 @@ export default function Settings() {
 							{/* Preview notificaciones activas */}
 							{notificationsEnabled &&
 								(() => {
-									const medicines =
-										JSON.parse(
-											localStorage.getItem(
-												"misMedicinas",
-											),
-										) || []
+									const medicines = []
 									const pendientes = medicines.filter(
 										(m) => !m.completado,
 									)
@@ -421,6 +427,7 @@ export default function Settings() {
 									)
 								})()}
 						</div>
+						<ReminderPreferences />
 						{notificationsEnabled && <Notifications />}
 					</>
 				)}

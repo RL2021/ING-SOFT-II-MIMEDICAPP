@@ -1,41 +1,51 @@
-// src/components/NotificationListener.jsx
-//
-// ══════════════════════════════════════════════════════════════════════════════
-//  SRP: este componente tiene una única responsabilidad → conectar el ciclo
-//       de vida de React (auth, intervalo de tiempo) con NotificationEngine.
-//  DIP: depende de notificationEngine (abstracción), no de las estrategias
-//       concretas.
-// ══════════════════════════════════════════════════════════════════════════════
+import { useEffect } from "react";
+import toast from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
+import { notificationEngine } from "../notifications/NotificationEngine";
+import { getReminderPreferences } from "../notifications/reminderRules";
 
-import { useEffect } from 'react';
-import toast from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext';
-import { notificationEngine } from '../notifications/NotificationEngine';
-
-/**
- * Componente de fondo: no renderiza nada visible.
- * Se monta dentro de ProtectedRoute → corre mientras el usuario está autenticado.
- *
- * Cada 60 segundos:
- *   1. notificationEngine.sync()           → genera y fusiona recordatorios
- *   2. notificationEngine.enviarPendientes() → dispara toasts si ya es la hora
- */
 export default function NotificationListener() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
-    // Respetar la preferencia del usuario (Configuración → Notificaciones)
-    if (localStorage.getItem('notificationsEnabled') !== 'true') return;
+    if (!user?.id) return undefined;
 
-    const ejecutar = () => {
-      const fusionadas = notificationEngine.sync();
-      notificationEngine.enviarPendientes(fusionadas, toast);
+    let active = true;
+    let running = false;
+
+    const execute = async () => {
+      if (running) return;
+      running = true;
+
+      try {
+        const preferences = getReminderPreferences(user);
+        if (!preferences.enabled) return;
+
+        const notifications = await notificationEngine.sync(user.id, preferences);
+        if (active) {
+          notificationEngine.enviarPendientes(notifications, toast, preferences);
+        }
+      } catch (error) {
+        console.error("No se pudieron sincronizar los recordatorios:", error);
+      } finally {
+        running = false;
+      }
     };
 
-    ejecutar();
-    const intervalo = setInterval(ejecutar, 60 * 1000);
-    return () => clearInterval(intervalo);
+    execute();
+    const interval = window.setInterval(execute, 60 * 1000);
+    let unsubscribe = () => undefined;
+    try {
+      unsubscribe = notificationEngine.suscribir(user.id, execute);
+    } catch (error) {
+      console.error("No se pudo iniciar Realtime para recordatorios:", error);
+    }
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      unsubscribe();
+    };
   }, [user]);
 
   return null;

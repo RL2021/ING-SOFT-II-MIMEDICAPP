@@ -6,3 +6,5 @@ dist/
 .prettierignore
 coverage/
 *.zip
+ClaudeExport/
+.vitest-attachments/

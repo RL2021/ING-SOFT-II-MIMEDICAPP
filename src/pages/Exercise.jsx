@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Dumbbell, Plus, Trash2, Edit3, CheckCircle2, X } from "lucide-react";
 import DashboardMenu from "../components/DashboardMenu";
+import { useAuth } from "../context/AuthContext";
+import SupabaseExerciseRepository from "../repositories/SupabaseExerciseRepository";
+
+const exerciseRepository = new SupabaseExerciseRepository();
 
 export default function Exercise() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Estados de datos
   const [exercises, setExercises] = useState([]);
@@ -33,44 +38,46 @@ export default function Exercise() {
   //        MÉTODOS ALINEADOS AL DIAGRAMA DE CLASES
   // =========================================================
 
-  // 1. listarEjercicios(): List - Recupera las rutinas del LocalStorage
-  const listarEjercicios = () => {
-    const stored = JSON.parse(localStorage.getItem("misEjercicios")) || [];
+  // 1. listarEjercicios(): List - Recupera las rutinas de Supabase
+  const listarEjercicios = async () => {
+    if (!user?.id) return [];
+    const stored = await exerciseRepository.listar(user.id);
     setExercises(stored);
     return stored;
   };
 
   // Cargar datos al iniciar el componente
   useEffect(() => {
-    listarEjercicios();
-  }, []);
-
-  // Persistir cambios en LocalStorage
-  const saveToStorage = (newList) => {
-    setExercises(newList);
-    localStorage.setItem("misEjercicios", JSON.stringify(newList));
-  };
+    listarEjercicios().catch((error) => {
+      window.alert(error?.message || "No se pudieron cargar los ejercicios.");
+    });
+  }, [user?.id]);
 
   // 2. agregarEjercicio(): void - Inserta una nueva rutina
-  const agregarEjercicio = () => {
-    const updatedList = [...exercises, formData];
-    saveToStorage(updatedList);
+  const agregarEjercicio = async () => {
+    const saved = await exerciseRepository.crear(user.id, formData);
+    setExercises((current) => [...current, saved]);
     setCurrentView("list");
   };
 
   // 3. editarEjercicio(Ejercicio): void - Actualiza la rutina en el índice correspondiente
-  const editarEjercicio = () => {
-    const updatedList = [...exercises];
-    updatedList[editingIndex] = formData;
-    saveToStorage(updatedList);
+  const editarEjercicio = async () => {
+    const saved = await exerciseRepository.actualizar(user.id, formData);
+    setExercises((current) => current.map((exercise) => exercise.id === saved.id ? saved : exercise));
     setEditingIndex(null);
     setCurrentView("list");
   };
 
   // 4. eliminarEjercicio(Ejercicio): void - Remueve los elementos seleccionados
-  const eliminarEjercicio = () => {
-    const updatedList = exercises.filter((_, index) => !checkedIds.includes(index));
-    saveToStorage(updatedList);
+  const eliminarEjercicio = async () => {
+    const ids = checkedIds.map((index) => exercises[index]?.id).filter(Boolean);
+    try {
+      await exerciseRepository.eliminar(user.id, ids);
+      setExercises((current) => current.filter((exercise) => !ids.includes(exercise.id)));
+    } catch (error) {
+      window.alert(error?.message || "No se pudieron eliminar los ejercicios.");
+      return;
+    }
     setCheckedIds([]);
     setDeleteMode(false);
     setShowDeleteModal(false);
@@ -87,17 +94,21 @@ export default function Exercise() {
   // =========================================================
 
   // Manejador del submit del formulario
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nombre) {
       window.alert("Por favor, ingresa al menos el nombre del ejercicio.");
       return;
     }
 
-    if (editingIndex !== null) {
-      editarEjercicio();
-    } else {
-      agregarEjercicio();
+    try {
+      if (editingIndex !== null) {
+        await editarEjercicio();
+      } else {
+        await agregarEjercicio();
+      }
+    } catch (error) {
+      window.alert(error?.message || "No se pudo guardar el ejercicio en Supabase.");
     }
   };
 
@@ -123,11 +134,18 @@ export default function Exercise() {
   };
 
   // Marcar/Desmarcar como realizado (Interactúa con el estado de cumplimiento)
-  const toggleComplete = (index, e) => {
+  const toggleComplete = async (index, e) => {
     e.stopPropagation();
-    const updatedList = [...exercises];
-    updatedList[index].completado = !updatedList[index].completado;
-    saveToStorage(updatedList);
+    const exercise = exercises[index];
+    try {
+      const saved = await exerciseRepository.actualizar(user.id, {
+        ...exercise,
+        completado: !exercise.completado,
+      });
+      setExercises((current) => current.map((item) => item.id === saved.id ? saved : item));
+    } catch (error) {
+      window.alert(error?.message || "No se pudo actualizar el ejercicio.");
+    }
   };
 
   // Lógica avanzada de filtrado combinado (Búsqueda + Pestaña de Estado)
@@ -416,7 +434,7 @@ export default function Exercise() {
                 <label className="grid gap-2 text-lg font-bold text-plum-800">
                   Nombre
                   <input
-                    type="text"
+                    type="datetime-local"
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"

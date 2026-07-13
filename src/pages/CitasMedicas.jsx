@@ -29,7 +29,7 @@ const createEmptyForm = () => ({
   ubicacion: "",
   fecha_hora_cita: "",
   notas: "",
-  tiene_recordatorio: false,
+  tiene_recordatorio: true,
 });
 
 const formatAppointmentDate = (value) => {
@@ -169,7 +169,7 @@ export default function CitasMedicas() {
       ubicacion: formData.ubicacion.trim(),
       fecha_hora_cita: formData.fecha_hora_cita,
       notas: formData.notas.trim(),
-      tiene_recordatorio: false,
+      tiene_recordatorio: formData.tiene_recordatorio,
     };
 
     if (!datosCita.doctor || !datosCita.especialidad || !datosCita.ubicacion || !datosCita.fecha_hora_cita) {
@@ -222,7 +222,7 @@ export default function CitasMedicas() {
       ubicacion: detalleCita.ubicacion,
       fecha_hora_cita: toDatetimeLocalValue(detalleCita.fecha_hora_cita),
       notas: detalleCita.notas,
-      tiene_recordatorio: false,
+      tiene_recordatorio: detalleCita.tiene_recordatorio,
     });
   };
 
@@ -251,7 +251,7 @@ export default function CitasMedicas() {
       ubicacion: editFormData.ubicacion.trim(),
       fecha_hora_cita: editFormData.fecha_hora_cita,
       notas: editFormData.notas.trim(),
-      tiene_recordatorio: false,
+      tiene_recordatorio: editFormData.tiene_recordatorio,
     };
 
     if (!datosCita.doctor || !datosCita.especialidad || !datosCita.ubicacion || !datosCita.fecha_hora_cita) {
@@ -604,6 +604,16 @@ export default function CitasMedicas() {
                 />
               </label>
 
+              <label className="flex items-center gap-3 rounded-2xl border-2 border-plum-100 bg-plum-50 p-4 text-sm font-black text-plum-700">
+                <input
+                  type="checkbox"
+                  checked={formData.tiene_recordatorio}
+                  onChange={(event) => updateField("tiene_recordatorio", event.target.checked)}
+                  className="h-5 w-5 accent-lotus-500"
+                />
+                Crear recordatorio para esta cita
+              </label>
+
               <button
                 type="submit"
                 disabled={isSaving}
@@ -822,6 +832,16 @@ export default function CitasMedicas() {
                   className="min-h-28 resize-none rounded-2xl border-2 border-plum-100 bg-plum-50 px-4 py-3 text-base font-semibold text-plum-800 outline-none transition focus:border-lotus-400 focus:bg-white"
                   placeholder="Indicaciones, documentos o sintomas importantes"
                 />
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border-2 border-plum-100 bg-plum-50 p-4 text-sm font-black text-plum-700">
+                <input
+                  type="checkbox"
+                  checked={editFormData.tiene_recordatorio}
+                  onChange={(event) => updateEditField("tiene_recordatorio", event.target.checked)}
+                  className="h-5 w-5 accent-lotus-500"
+                />
+                Mantener recordatorio para esta cita
               </label>
 
               <div className="grid gap-3 sm:grid-cols-2">

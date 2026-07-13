@@ -77,6 +77,17 @@ export const AuthProvider = ({ children }) => {
     return { data, error };
   };
 
+  const updateReminderPreferences = async (preferences) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { reminder_preferences: preferences },
+    });
+
+    if (!error && data?.user) {
+      setUser(data.user);
+    }
+    return { data, error };
+  };
+
   const value = {
     user,
     signUp,
@@ -84,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     signOut,
     resetPassword,
     updatePassword,
+    updateReminderPreferences,
     loading,
   };
 

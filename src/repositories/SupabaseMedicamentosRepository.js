@@ -1,12 +1,33 @@
 import { supabase } from "../lib/supabase";
 
 export const SupabaseMedicamentosRepository = {
+
+  mapearMedicamento(med) {
+    const fecha = med.first_take ? new Date(med.first_take) : null;
+    const primeraToma = fecha && !Number.isNaN(fecha.getTime())
+      ? `${String(fecha.getHours()).padStart(2, "0")}:${String(fecha.getMinutes()).padStart(2, "0")}`
+      : "";
+
+    return {
+      id: med.id,
+      nombre: med.name,
+      dosis: med.dosage,
+      frecuencia: med.frequency,
+      primera_toma: primeraToma,
+      activo: med.is_active,
+      tomado: med.is_taken,
+    };
+  },
   
   // Traer todos los medicamentos y mapearlos a español para el componente
   async listarMedicamentos() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) return [];
+
     const { data, error } = await supabase
       .from("medicines") // Nombre de tu tabla en Supabase
       .select("*")
+      .eq("user_id", session.user.id)
       .order("created_at", { ascending: true });
     
     if (error) {
@@ -15,15 +36,7 @@ export const SupabaseMedicamentosRepository = {
     }
 
     // Convertimos lo que viene de la BD al formato que usa Medicines.jsx 
-    return (data || []).map(med => ({
-      id: med.id,
-      nombre: med.name,
-      dosis: med.dosage,
-      frecuencia: med.frequency,
-      primera_toma: med.first_take,
-      activo: med.is_active,
-      tomado: med.is_taken
-    }));
+    return (data || []).map((med) => this.mapearMedicamento(med));
   },
 
   // Insertar mapeando los datos de forma compatible con la BD
@@ -47,6 +60,7 @@ export const SupabaseMedicamentosRepository = {
       dosage: nuevoMedicamento.dosis,
       frequency: nuevoMedicamento.frecuencia,
       first_take: timestampEnvio,
+      next_take: timestampEnvio,
       is_active: nuevoMedicamento.activo,
       is_taken: nuevoMedicamento.tomado
     };
@@ -62,15 +76,7 @@ export const SupabaseMedicamentosRepository = {
     }
 
     const creado = data[0];
-    return {
-      id: creado.id,
-      nombre: creado.name,
-      dosis: creado.dosage,
-      frecuencia: creado.frequency,
-      primera_toma: creado.first_take,
-      activo: creado.is_active,
-      tomado: creado.is_taken
-    };
+    return this.mapearMedicamento(creado);
   },
 
   // Actualizar mapeando los datos de forma compatible
@@ -86,6 +92,7 @@ export const SupabaseMedicamentosRepository = {
         const [horas, minutos] = medicamentoEditado.primera_toma.split(":");
         hoy.setHours(parseInt(horas, 10), parseInt(minutos, 10), 0, 0);
         payload.first_take = hoy.toISOString();
+        payload.next_take = payload.first_take;
       } else {
         payload.first_take = null;
       }
@@ -106,15 +113,7 @@ export const SupabaseMedicamentosRepository = {
     }
 
     const editado = data[0];
-    return {
-      id: editado.id,
-      nombre: editado.name,
-      dosis: editado.dosage,
-      frecuencia: editado.frequency,
-      primera_toma: editado.first_take,
-      activo: editado.is_active,
-      tomado: editado.is_taken
-    };
+    return this.mapearMedicamento(editado);
   },
 
   // Eliminar múltiples registros

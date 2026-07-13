@@ -1,91 +1,41 @@
-// src/notifications/RecordatorioEjercicioStrategy.js
-//
-// ══════════════════════════════════════════════════════════════════════════════
-//  PATRÓN STRATEGY  ·  ConcreteStrategy C
-//  Historia de usuario: US-030 (recordatorio web para realizar ejercicio)
-// ══════════════════════════════════════════════════════════════════════════════
-//
-//  SRP: esta clase tiene una sola razón para cambiar → la lógica de recordatorio
-//       de ejercicios.
-//  LSP: puede reemplazar a IRecordatorioStrategy en cualquier contexto.
-
-import { IRecordatorioStrategy } from './IRecordatorioStrategy';
-import { parsearHora, fechaHoy, hoyA } from './utils';
+import { IRecordatorioStrategy } from "./IRecordatorioStrategy";
+import { subtractLeadMinutes } from "./reminderRules";
 
 export class RecordatorioEjercicioStrategy extends IRecordatorioStrategy {
+  generarNotificacionPersistente(exercises, context) {
+    return exercises.flatMap((exercise) => {
+      if (!exercise.is_active || exercise.is_completed || !exercise.scheduled_at) return [];
 
-  // ── generarNotificacionPersistente ────────────────────────────────────────
-  /**
-   * Por cada ejercicio no completado y con horario definido, genera un
-   * RecordatorioEjercicio para el horario programado de hoy.
-   *
-   * Campos del objeto (respetan el diagrama de clases):
-   *   idNotificacion, idEjercicio, activo, fechaEnvio
-   */
-  generarNotificacionPersistente(exercises) {
-    const hoy = fechaHoy();
+      const exerciseDate = new Date(exercise.scheduled_at);
+      if (Number.isNaN(exerciseDate.getTime()) || exerciseDate <= context.now) return [];
 
-    return exercises
-      .filter((ex) => ex.nombre && ex.horario && !ex.completado)
-      .map((ex) => {
-        const hora = parsearHora(ex.horario);
-        if (!hora) return null;
+      const scheduled = subtractLeadMinutes(
+        exercise.scheduled_at,
+        context.preferences.exerciseLeadMinutes,
+      );
+      if (!scheduled) return [];
 
-        return {
-          // ── Campos del diagrama de clases ──
-          idNotificacion: `re-${ex.nombre}-${hoy}`,
-          idEjercicio: ex.nombre,
-          activo: true,
-          fechaEnvio: hoyA(hora.hours, hora.minutes),
-          // ── Datos de presentación ──
-          tipo: 'ejercicio',
-          nombreEjercicio: ex.nombre,
-          horario: ex.horario,
-          descripcion: ex.descripcion,
-          is_read: false,
-          notificado: false,
-        };
-      })
-      .filter(Boolean);
-  }
-
-  // ── IRecordatorioStrategy contract ────────────────────────────────────────
-
-  obtenerIdentificador(recordatorio) {
-    return recordatorio.idNotificacion;
-  }
-
-  obtenerFechaProgramada(recordatorio) {
-    return recordatorio.fechaEnvio;
-  }
-
-  generarMensajeToast(recordatorio) {
-    return `🏋️ Hora de ejercitar: ${recordatorio.nombreEjercicio}`;
+      return [{
+        user_id: context.userId,
+        title: `Realizar ${exercise.name}`,
+        message: exercise.description || "Rutina de ejercicio programada",
+        type: "exercise",
+        scheduled_for: scheduled.toISOString(),
+        is_read: false,
+        exercise_id: exercise.id,
+      }];
+    });
   }
 
   obtenerEstiloToast() {
-    return { background: '#e8fdf0', color: '#1a5a2a', fontWeight: 700 };
+    return { background: "#e8fdf0", color: "#1a5a2a", fontWeight: 700 };
   }
 
   obtenerTextoBoton() {
-    return 'Marcar realizado';
+    return "Marcar realizado";
   }
 
   obtenerClaseBoton() {
-    return 'bg-mint-500 hover:bg-mint-500/80 text-white';
-  }
-
-  obtenerTituloHistorial(recordatorio) {
-    return recordatorio.nombreEjercicio ?? 'Ejercicio';
-  }
-
-  // ── Método específico del diagrama de clases ──────────────────────────────
-
-  /**
-   * marcarRealizado(): confirma que el usuario realizó el ejercicio.
-   * Delega en marcarCompletado() heredado de IRecordatorioStrategy.
-   */
-  marcarRealizado(recordatorio) {
-    return this.marcarCompletado(recordatorio);
+    return "bg-mint-500 hover:bg-mint-500/80 text-white";
   }
 }
