@@ -2,29 +2,29 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Dumbbell, Plus, Trash2, Edit3, CheckCircle2, X } from "lucide-react";
 import DashboardMenu from "../components/DashboardMenu";
-import { useAuth } from "../context/AuthContext";
-import SupabaseExerciseRepository from "../repositories/SupabaseExerciseRepository";
-
-const exerciseRepository = new SupabaseExerciseRepository();
+import { useAuth } from "../context/AuthContext"; // Extrae la sesión global[cite: 3]
+import { SupabaseExerciseRepository } from "../repositories/SupabaseExerciseRepository"; // Abstracción de datos[cite: 3]
 
 export default function Exercise() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useAuth(); // Sesión activa[cite: 3]
 
   // Estados de datos
   const [exercises, setExercises] = useState([]);
   const [selectedEx, setSelectedEx] = useState(null);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   
   // Estados para búsqueda y filtrado por pestañas
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // "all", "pending", "completed"
+  const [statusFilter, setStatusFilter] = useState("all");
   
   // Estados de flujo
   const [currentView, setCurrentView] = useState("list");
   const [deleteMode, setDeleteMode] = useState(false);
-  const [checkedIds, setCheckedIds] = useState([]);
+  const [checkedIds, setCheckedIds] = useState([]); 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -34,121 +34,125 @@ export default function Exercise() {
     completado: false
   });
 
-  // =========================================================
-  //        MÉTODOS ALINEADOS AL DIAGRAMA DE CLASES
-  // =========================================================
-
-  // 1. listarEjercicios(): List - Recupera las rutinas de Supabase
+  // 1. listarEjercicios(): Recuperación asíncrona mediante el patrón Repository (US-035)[cite: 1, 3]
   const listarEjercicios = async () => {
-    if (!user?.id) return [];
-    const stored = await exerciseRepository.listar(user.id);
-    setExercises(stored);
-    return stored;
-  };
-
-  // Cargar datos al iniciar el componente
-  useEffect(() => {
-    listarEjercicios().catch((error) => {
-      window.alert(error?.message || "No se pudieron cargar los ejercicios.");
-    });
-  }, [user?.id]);
-
-  // 2. agregarEjercicio(): void - Inserta una nueva rutina
-  const agregarEjercicio = async () => {
-    const saved = await exerciseRepository.crear(user.id, formData);
-    setExercises((current) => [...current, saved]);
-    setCurrentView("list");
-  };
-
-  // 3. editarEjercicio(Ejercicio): void - Actualiza la rutina en el índice correspondiente
-  const editarEjercicio = async () => {
-    const saved = await exerciseRepository.actualizar(user.id, formData);
-    setExercises((current) => current.map((exercise) => exercise.id === saved.id ? saved : exercise));
-    setEditingIndex(null);
-    setCurrentView("list");
-  };
-
-  // 4. eliminarEjercicio(Ejercicio): void - Remueve los elementos seleccionados
-  const eliminarEjercicio = async () => {
-    const ids = checkedIds.map((index) => exercises[index]?.id).filter(Boolean);
+    if (!user?.id) return;
     try {
-      await exerciseRepository.eliminar(user.id, ids);
-      setExercises((current) => current.filter((exercise) => !ids.includes(exercise.id)));
+      setLoading(true);
+      setErrorMessage("");
+      const data = await SupabaseExerciseRepository.listarEjercicios(user.id);
+      setExercises(data);
     } catch (error) {
-      window.alert(error?.message || "No se pudieron eliminar los ejercicios.");
-      return;
+      console.error(error);
+      setErrorMessage("Error al conectar con el servidor de salud.");
+    } finally {
+      setLoading(false);
     }
-    setCheckedIds([]);
-    setDeleteMode(false);
-    setShowDeleteModal(false);
   };
 
-  // 5. verDetalle(): void - Selecciona un ejercicio para inspeccionar sus atributos
-  const verDetalle = (ex, originalIndex) => {
-    setSelectedEx({ ...ex, index: originalIndex });
+  useEffect(() => {
+    if (user) {
+      listarEjercicios();
+    }
+  }, [user]);
+
+  // 2. agregarEjercicio(): Envío estructurado a la base de datos remota (US-034)[cite: 3]
+  const agregarEjercicio = async () => {
+    try {
+      setErrorMessage("");
+      const newRecord = await SupabaseExerciseRepository.agregarEjercicio(user.id, formData);
+      setExercises([...exercises, newRecord]);
+      setCurrentView("list");
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("No se pudo guardar la rutina: " + error.message);
+    }
+  };
+
+  // 3. editarEjercicio(): Actualización selectiva por ID único
+  const editarEjercicio = async () => {
+    try {
+      setErrorMessage("");
+      const updatedRecord = await SupabaseExerciseRepository.editarEjercicio(user.id, editingId, formData);
+      setExercises(exercises.map((ex) => (ex.id === editingId ? updatedRecord : ex)));
+      setEditingId(null);
+      setCurrentView("list");
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Error al actualizar la rutina.");
+    }
+  };
+
+  // 4. eliminarEjercicio(): Remoción masiva controlada
+  const eliminarEjercicio = async () => {
+    try {
+      setErrorMessage("");
+      await SupabaseExerciseRepository.eliminarEjercicios(user.id, checkedIds);
+      setExercises(exercises.filter((ex) => !checkedIds.includes(ex.id)));
+      setCheckedIds([]);
+      setDeleteMode(false);
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Error al eliminar los ejercicios seleccionados.");
+    }
+  };
+
+  // 5. verDetalle(): Inspección visual
+  const verDetalle = (ex) => {
+    setSelectedEx(ex);
     setCurrentView("detail");
   };
 
-  // =========================================================
-  //               MANEJADORES DE LA INTERFAZ
-  // =========================================================
-
-  // Manejador del submit del formulario
-  const handleFormSubmit = async (e) => {
+  const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!formData.nombre) {
+    if (!formData.nombre.trim()) {
       window.alert("Por favor, ingresa al menos el nombre del ejercicio.");
       return;
     }
 
-    try {
-      if (editingIndex !== null) {
-        await editarEjercicio();
-      } else {
-        await agregarEjercicio();
-      }
-    } catch (error) {
-      window.alert(error?.message || "No se pudo guardar el ejercicio en Supabase.");
+    if (editingId !== null) {
+      editarEjercicio();
+    } else {
+      agregarEjercicio();
     }
   };
 
-  // Abrir formulario para agregar o editar
-  const handleOpenForm = (index = null) => {
-    if (index !== null) {
-      setFormData(exercises[index]);
-      setEditingIndex(index);
+  const handleOpenForm = (ex = null) => {
+    if (ex !== null) {
+      setFormData({
+        nombre: ex.nombre,
+        horario: ex.horario || "",
+        descripcion: ex.descripcion || "",
+        completado: ex.completado
+      });
+      setEditingId(ex.id);
     } else {
       setFormData({ nombre: "", horario: "", descripcion: "", completado: false });
-      setEditingIndex(null);
+      setEditingId(null);
     }
     setCurrentView("form");
   };
 
-  // Selección/Deselección de checkboxes para eliminación
-  const toggleCheck = (index) => {
-    if (checkedIds.includes(index)) {
-      setCheckedIds(checkedIds.filter(id => id !== index));
+  const toggleCheck = (id) => {
+    if (checkedIds.includes(id)) {
+      setCheckedIds(checkedIds.filter((item) => item !== id));
     } else {
-      setCheckedIds([...checkedIds, index]);
+      setCheckedIds([...checkedIds, id]);
     }
   };
 
-  // Marcar/Desmarcar como realizado (Interactúa con el estado de cumplimiento)
-  const toggleComplete = async (index, e) => {
+  const toggleComplete = async (ex, e) => {
     e.stopPropagation();
-    const exercise = exercises[index];
     try {
-      const saved = await exerciseRepository.actualizar(user.id, {
-        ...exercise,
-        completado: !exercise.completado,
-      });
-      setExercises((current) => current.map((item) => item.id === saved.id ? saved : item));
+      const updated = await SupabaseExerciseRepository.toggleComplete(user.id, ex.id, !ex.completado);
+      setExercises(exercises.map((item) => (item.id === ex.id ? updated : item)));
     } catch (error) {
-      window.alert(error?.message || "No se pudo actualizar el ejercicio.");
+      console.error(error);
     }
   };
 
-  // Lógica avanzada de filtrado combinado (Búsqueda + Pestaña de Estado)
+  // US-036: Algoritmo de filtrado reactivo (Búsqueda + Pestaña)[cite: 3]
   const filteredExercises = exercises.filter((ex) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch = 
@@ -160,16 +164,30 @@ export default function Exercise() {
     return matchesSearch;
   });
 
-  // Contadores para progreso
+  // US-037: Métricas de progreso dinámicas[cite: 3]
   const totalCount = exercises.length;
-  const completedCount = exercises.filter(e => e.completado).length;
+  const completedCount = exercises.filter((e) => e.completado).length;
   const pendingCount = totalCount - completedCount;
+
+  if (loading && user) {
+    return (
+    <div data-testid="loading-container" class="min-h-screen flex items-center justify-center bg-plum-50 text-plum-800 font-bold">
+      Cargando rutinas en la nube...
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-plum-50 text-plum-800 font-sans">
       <DashboardMenu />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        
+        {errorMessage && (
+          <div className="mb-4 bg-red-100 border-l-4 border-red-500 p-4 text-red-700 rounded-xl shadow-sm">
+            <p className="text-sm font-bold">{errorMessage}</p>
+          </div>
+        )}
         
         {currentView === "list" && (
           <section>
@@ -214,7 +232,6 @@ export default function Exercise() {
                 <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Ejercicio</h1>
               </div>
 
-              {/* CONTADOR DE PROGRESO */}
               {totalCount > 0 && (
                 <div className="text-right">
                   <p className="text-sm font-bold text-plum-500">
@@ -222,7 +239,7 @@ export default function Exercise() {
                   </p>
                   <div className="mt-1 h-2 w-36 overflow-hidden rounded-full bg-plum-100 inline-block">
                     <div 
-                      className="h-full bg-mint-500 transition-all duration-300"
+                      className="h-full bg-emerald-500 transition-all duration-500"
                       style={{ width: `${(completedCount / totalCount) * 100}%` }}
                     />
                   </div>
@@ -230,7 +247,6 @@ export default function Exercise() {
               )}
             </div>
 
-            {/* BARRA DE BÚSQUEDA */}
             <div className="mb-4 relative">
               <input
                 type="text"
@@ -249,15 +265,12 @@ export default function Exercise() {
               )}
             </div>
 
-            {/* PESTAÑAS DE FILTRADO POR ESTADO */}
             {totalCount > 0 && (
               <div className="mb-6 flex flex-wrap gap-2">
                 <button
                   onClick={() => setStatusFilter("all")}
                   className={`px-4 py-2 text-sm font-black rounded-xl transition ${
-                    statusFilter === "all" 
-                      ? "bg-plum-700 text-white shadow-md" 
-                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                    statusFilter === "all" ? "bg-plum-700 text-white shadow-md" : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
                   }`}
                 >
                   Todas ({totalCount})
@@ -265,9 +278,7 @@ export default function Exercise() {
                 <button
                   onClick={() => setStatusFilter("pending")}
                   className={`px-4 py-2 text-sm font-black rounded-xl transition ${
-                    statusFilter === "pending" 
-                      ? "bg-plum-700 text-white shadow-md" 
-                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                    statusFilter === "pending" ? "bg-plum-700 text-white shadow-md" : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
                   }`}
                 >
                   Pendientes ({pendingCount})
@@ -275,9 +286,7 @@ export default function Exercise() {
                 <button
                   onClick={() => setStatusFilter("completed")}
                   className={`px-4 py-2 text-sm font-black rounded-xl transition ${
-                    statusFilter === "completed" 
-                      ? "bg-plum-700 text-white shadow-md" 
-                      : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
+                    statusFilter === "completed" ? "bg-plum-700 text-white shadow-md" : "bg-white text-plum-600 border border-plum-100 hover:bg-plum-50"
                   }`}
                 >
                   Completadas ({completedCount})
@@ -285,7 +294,6 @@ export default function Exercise() {
               </div>
             )}
 
-            {/* LISTA DE EJERCICIOS FILTRADA */}
             <div className="grid gap-4">
               {totalCount === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
@@ -297,14 +305,12 @@ export default function Exercise() {
                 </div>
               ) : (
                 filteredExercises.map((ex) => {
-                  const originalIndex = exercises.findIndex(item => item === ex);
-                  
                   return (
                     <div
-                      key={originalIndex}
+                      key={ex.id}
                       onClick={() => {
                         if (!deleteMode) {
-                          verDetalle(ex, originalIndex);
+                          verDetalle(ex);
                         }
                       }}
                       className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
@@ -315,8 +321,8 @@ export default function Exercise() {
                         {deleteMode && (
                           <input
                             type="checkbox"
-                            checked={checkedIds.includes(originalIndex)}
-                            onChange={() => toggleCheck(originalIndex)}
+                            checked={checkedIds.includes(ex.id)}
+                            onChange={() => toggleCheck(ex.id)}
                             onClick={(e) => e.stopPropagation()}
                             className="h-5 w-5 rounded accent-lotus-500"
                           />
@@ -324,9 +330,9 @@ export default function Exercise() {
                         
                         {!deleteMode && (
                           <button
-                            onClick={(e) => toggleComplete(originalIndex, e)}
+                            onClick={(e) => toggleComplete(ex, e)}
                             className={`mr-2 rounded-full transition p-1 ${
-                              ex.completado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
+                              ex.completado ? "text-emerald-500" : "text-plum-300 hover:text-emerald-500"
                             }`}
                           >
                             <CheckCircle2 className="h-7 w-7" strokeWidth={ex.completado ? 2.8 : 1.8} />
@@ -338,14 +344,14 @@ export default function Exercise() {
                             {ex.nombre}
                           </h3>
                           <p className="mt-1 text-sm font-semibold text-plum-500">
-                            {ex.horario || "Sin horario"} — {ex.descripcion}
+                            {ex.horario || "Sin horario"} — {ex.descripcion || "Sin descripción"}
                           </p>
                         </div>
                       </div>
 
                       {!deleteMode && (
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleOpenForm(originalIndex); }}
+                          onClick={(e) => { e.stopPropagation(); handleOpenForm(ex); }}
                           className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
                         >
                           <Edit3 className="h-5 w-5" />
@@ -374,7 +380,7 @@ export default function Exercise() {
         {currentView === "detail" && selectedEx && (
           <section className="mx-auto max-w-xl">
             <button
-              onClick={() => setCurrentView("list")}
+              onClick={() => { setCurrentView("list"); setSelectedEx(null); }}
               className="mb-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-plum-700 shadow-sm ring-1 ring-plum-100 transition hover:text-lotus-500"
             >
               <ChevronLeft className="h-5 w-5" /> Volver
@@ -388,17 +394,23 @@ export default function Exercise() {
               <div className="grid gap-4 text-lg text-left">
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Horario</span>
-                  <span className="font-medium text-plum-600">{selectedEx.horario || "08:00 am"}</span>
+                  <span className="font-medium text-plum-600">{selectedEx.horario || "Sin horario"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Descripción</span>
                   <span className="font-medium text-plum-600">{selectedEx.descripcion || "Sin descripción"}</span>
                 </div>
+                <div className="flex justify-between py-2 border-b border-plum-50">
+                  <span className="font-bold text-plum-700">Estado</span>
+                  <span className={`font-bold ${selectedEx.completado ? "text-emerald-500" : "text-amber-500"}`}>
+                    {selectedEx.completado ? "Completado" : "Pendiente"}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-8 flex gap-3">
                 <button
-                  onClick={() => handleOpenForm(selectedEx.index)}
+                  onClick={() => handleOpenForm(selectedEx)}
                   className="flex-1 min-h-12 rounded-full border-2 border-plum-700 bg-white text-plum-700 font-extrabold transition hover:bg-plum-50"
                 >
                   Editar Información
@@ -422,10 +434,10 @@ export default function Exercise() {
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide text-lotus-500">
-                    {editingIndex !== null ? "Modificar" : "Nuevo"} ejercicio
+                    {editingId !== null ? "Modificar" : "Nuevo"} ejercicio
                   </p>
                   <h1 className="mt-1 text-2xl font-black text-plum-800">
-                    {editingIndex !== null ? "Editar rutina" : "Registrar ejercicio"}
+                    {editingId !== null ? "Editar rutina" : "Registrar ejercicio"}
                   </h1>
                 </div>
               </div>
@@ -434,11 +446,12 @@ export default function Exercise() {
                 <label className="grid gap-2 text-lg font-bold text-plum-800">
                   Nombre
                   <input
-                    type="datetime-local"
+                    type="text"
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     className="h-14 w-full rounded-2xl border-2 border-plum-100 bg-plum-50/50 px-4 text-lg font-medium text-plum-800 outline-none transition focus:border-lotus-500 focus:bg-white"
                     placeholder="Ej. Estiramientos"
+                    required
                   />
                 </label>
 
@@ -467,7 +480,7 @@ export default function Exercise() {
                   type="submit"
                   className="mt-4 flex min-h-14 w-full items-center justify-center rounded-full bg-plum-700 px-6 py-3 text-lg font-extrabold text-white shadow-lg transition hover:bg-plum-800"
                 >
-                  {editingIndex !== null ? "Actualizar" : "Agregar"}
+                  {editingId !== null ? "Actualizar" : "Agregar"}
                 </button>
               </div>
             </form>
