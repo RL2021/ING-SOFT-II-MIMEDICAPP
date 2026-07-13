@@ -1,51 +1,42 @@
-// IMPORTACIONES DE LIBRERÍAS Y COMPONENTES
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Pill, Plus, Trash2, Edit3, CheckCircle2 } from "lucide-react";
 import DashboardMenu from "../components/DashboardMenu";
+import { SupabaseMedicamentosRepository } from "../repositories/SupabaseMedicamentosRepository";
 
 export default function Medicines() {
   const navigate = useNavigate();
 
-  // ESTADOS DE DATOS Y FLUJO
   const [medicines, setMedicines] = useState([]);
-  const [selectedMed, setSelectedMed] = useState(null); // Control para +verDetalle(): Medicamento
-  const [editingIndex, setEditingIndex] = useState(null); // Control para saber si se edita una posición
+  const [selectedMed, setSelectedMed] = useState(null); 
+  const [editingIndex, setEditingIndex] = useState(null); 
   
   const [currentView, setCurrentView] = useState("list");
   const [deleteMode, setDeleteMode] = useState(false); 
   const [checkedIds, setCheckedIds] = useState([]); 
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
 
-  // Estado del formulario basado en las propiedades de Medicamento
   const [formData, setFormData] = useState({
     nombre: "",
     dosis: "",
     frecuencia: "Cada 8 horas",
-    primera_toma: "",      // Atributo: datetime
-    activo: true,          // Atributo: boolean
-    tomado: false          // Atributo: boolean
+    primera_toma: "",      
+    activo: true,          
+    tomado: false          
   });
 
-
-  // PERSISTENCIA EN BASE DE DATOS LOCAL
-  // +listarMedicamentos(): List
   useEffect(() => {
-    const listarMedicamentos = () => {
-      const stored = JSON.parse(localStorage.getItem("misMedicinas")) || [];
-      setMedicines(stored);
+    const cargarDatos = async () => {
+      try {
+        const datos = await SupabaseMedicamentosRepository.listarMedicamentos();
+        setMedicines(datos);
+      } catch (err) {
+        window.alert("No se pudieron cargar los medicamentos de la base de datos.");
+      }
     };
-    listarMedicamentos();
+    cargarDatos();
   }, []);
 
-  const saveToStorage = (newList) => {
-    setMedicines(newList);
-    localStorage.setItem("misMedicinas", JSON.stringify(newList));
-  };
-
-
-  // MÉTODOS OFICIALES DE LA CLASE MEDICAMENTO
-  // Control de apertura de formulario
   const handleOpenForm = (index = null) => {
     if (index !== null) {
       setFormData(medicines[index]);
@@ -57,71 +48,76 @@ export default function Medicines() {
     setCurrentView("form");
   };
 
-  // +agregarMedicamento(): void
-  const agregarMedicamento = (nuevoMedicamento) => {
-    const updatedList = [...medicines, nuevoMedicamento];
-    saveToStorage(updatedList);
-    setCurrentView("list");
-  };
-
-  // +editarMedicamento(): void
-  const editarMedicamento = (medicamentoEditado) => {
-    let updatedList = [...medicines];
-    updatedList[editingIndex] = medicamentoEditado;
-    saveToStorage(updatedList);
-    setCurrentView("list");
-  };
-
-  // Manejador del Submit del Formulario
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nombre || !formData.dosis) {
       window.alert("Por favor, completa los campos principales (Nombre y Dosis).");
       return;
     }
 
-    if (editingIndex !== null) {
-      editarMedicamento(formData); 
-    } else {
-      agregarMedicamento(formData);
+    try {
+      if (editingIndex !== null) {
+        const medAEditar = medicines[editingIndex];
+        const resultado = await SupabaseMedicamentosRepository.editarMedicamento(medAEditar.id, formData);
+        
+        const updatedList = [...medicines];
+        updatedList[editingIndex] = resultado;
+        setMedicines(updatedList);
+      } else {
+        const nuevoMed = await SupabaseMedicamentosRepository.agregarMedicamento(formData);
+        setMedicines([...medicines, nuevoMed]);
+      }
+      setCurrentView("list");
+    } catch (err) {
+      window.alert("Error al intentar guardar el medicamento.");
     }
   };
 
-  // Manejo de selección en la interfaz para borrado
-  const toggleCheck = (index) => {
-    if (checkedIds.includes(index)) {
-      setCheckedIds(checkedIds.filter(id => id !== index));
+  const toggleCheck = (id) => {
+    if (checkedIds.includes(id)) {
+      setCheckedIds(checkedIds.filter(item => item !== id));
     } else {
-      setCheckedIds([...checkedIds, index]);
+      setCheckedIds([...checkedIds, id]);
     }
   };
 
-  // +eliminarMedicamento(): void
-  const eliminarMedicamento = () => {
-    const updatedList = medicines.filter((_, index) => !checkedIds.includes(index));
-    saveToStorage(updatedList);
-    setCheckedIds([]);
-    setDeleteMode(false);
-    setShowDeleteModal(false);
+  const eliminarMedicamento = async () => {
+    try {
+      await SupabaseMedicamentosRepository.eliminarMedicamentos(checkedIds);
+      const updatedList = medicines.filter((med) => !checkedIds.includes(med.id));
+      setMedicines(updatedList);
+      setCheckedIds([]);
+      setDeleteMode(false);
+      setShowDeleteModal(false);
+    } catch (err) {
+      window.alert("No se pudieron eliminar los elementos seleccionados.");
+    }
   };
 
-  // +marcarComoTomado(): void
-  const marcarComoTomado = (index, e) => {
-    e.stopPropagation(); // Evita el efecto burbuja
-    const updatedList = [...medicines];
-    updatedList[index].tomado = !updatedList[index].tomado; // Invierte el atributo tomado
-    saveToStorage(updatedList);
+  const marcarComoTomado = async (index, e) => {
+    e.stopPropagation(); 
+    const med = medicines[index];
+    const nuevoEstadoTomado = !med.tomado;
+
+    try {
+      const resultado = await SupabaseMedicamentosRepository.editarMedicamento(med.id, {
+        tomado: nuevoEstadoTomado
+      });
+      
+      const updatedList = [...medicines];
+      updatedList[index] = resultado;
+      setMedicines(updatedList);
+    } catch (err) {
+      window.alert("No se pudo actualizar el estado de la toma.");
+    }
   };
 
-
-  // RENDERIZADO DE INTERFAZ DENTRO DE MEDICINES.JSX
   return (
     <div className="min-h-screen bg-plum-50 text-plum-800 font-sans">
       <DashboardMenu />
 
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         
-        {/* LISTADO GENERAL */}
         {currentView === "list" && (
           <section>
             <div className="mb-6 flex flex-wrap gap-3 justify-between items-center">
@@ -160,7 +156,6 @@ export default function Medicines() {
               </div>
             </div>
 
-            {/* Encabezado del módulo */}
             <div className="mb-8 flex items-center gap-3">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-lotus-100 text-lotus-500">
                 <Pill className="h-7 w-7" strokeWidth={2.4} />
@@ -168,97 +163,93 @@ export default function Medicines() {
               <h1 className="text-3xl font-black text-plum-800 sm:text-4xl">Medicación</h1>
             </div>
 
-            {/* BARRA DE PROGRESO */}
             {medicines.length > 0 && (
               <div className="mb-8 rounded-[2rem] bg-white p-6 shadow-soft ring-1 ring-plum-100">
                 <div className="mb-3 flex justify-between items-center text-sm font-black text-plum-700">
                   <span>Progreso de tomas de hoy</span>
                   <span className="text-lotus-500">
-                    {medicines.filter(m => m.tomado).length} de {medicines.length} ({Math.round((medicines.filter(m => m.tomado).length / medicines.length) * 100)}%)
+                    {medicines.filter(m => m?.tomado).length} de {medicines.length} ({Math.round((medicines.filter(m => m?.tomado).length / medicines.length) * 100)}%)
                   </span>
                 </div>
                 
                 <div className="h-6 w-full rounded-full bg-[#e1e4df] p-1 overflow-hidden flex items-center">
                   <div 
                     className="h-full rounded-full bg-[#ee2c70] transition-all duration-500 ease-out"
-                    style={{ width: `${(medicines.filter(m => m.tomado).length / medicines.length) * 100}%` }}
+                    style={{ width: `${(medicines.filter(m => m?.tomado).length / medicines.length) * 100}%` }}
                   />
                 </div>
               </div>
             )}
 
-            {/* Lista de medicamentos (+listarMedicamentos) */}
             <div className="grid gap-4">
               {medicines.length === 0 ? (
                 <div className="rounded-[2rem] border-2 border-dashed border-plum-200 bg-white/50 p-8 text-center ring-1 ring-plum-100">
                   <p className="text-lg font-medium text-plum-500 italic">No hay medicamentos registrados todavía.</p>
                 </div>
               ) : (
-                medicines.map((med, index) => (
-                  <div
-                    key={index}
-                    onClick={() => {
-                      if (!deleteMode) {
-                        setSelectedMed({ ...med, index });
-                        setCurrentView("detail"); // Muestra la vista detallada -> +verDetalle(): Medicamento
-                      }
-                    }}
-                    className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition ${
-                      deleteMode ? "border-plum-200 cursor-pointer" : "border-plum-100 hover:-translate-y-0.5 hover:border-lotus-400 hover:shadow-soft cursor-pointer"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Checkbox para Eliminación Masiva */}
-                      {deleteMode && (
-                        <input
-                          type="checkbox"
-                          checked={checkedIds.includes(index)}
-                          onChange={() => toggleCheck(index)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-5 w-5 rounded accent-lotus-500"
-                        />
-                      )}
-                      
-                      {/* Botón para activar el método +marcarComoTomado() */}
+                <> 
+                  {medicines.map((med, index) => (
+                    <div
+                      key={med.id || index}
+                      onClick={() => {
+                        if (!deleteMode) {
+                          setSelectedMed({ ...med, index });
+                          setCurrentView("detail"); 
+                        }
+                      }}
+                      className={`group flex items-center justify-between rounded-3xl border-2 bg-white p-5 text-left shadow-sm transition mb-4 ${
+                        deleteMode ? "border-plum-200 cursor-pointer" : "border-plum-100 hover:-translate-y-0.5 hover:border-lotus-400 hover:shadow-soft cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {deleteMode && (
+                          <input
+                            type="checkbox"
+                            checked={checkedIds.includes(med.id)}
+                            onChange={() => toggleCheck(med.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-5 w-5 rounded accent-lotus-500"
+                          />
+                        )}
+                        
+                        {!deleteMode && (
+                          <button
+                            type="button"
+                            onClick={(e) => marcarComoTomado(index, e)}
+                            className={`mr-2 rounded-full transition p-1 ${
+                              med?.tomado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
+                            }`}
+                          >
+                            <CheckCircle2 className="h-7 w-7" strokeWidth={med?.tomado ? 2.8 : 1.8} />
+                          </button>
+                        )}
+
+                        <div>
+                          <h3 className={`text-xl font-black leading-tight text-plum-800 ${med?.tomado ? "line-through opacity-50" : ""}`}>
+                            {med.nombre}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-plum-500">
+                            {med.dosis} cada {med.frecuencia ? med.frecuencia.toLowerCase().replace("cada ", "") : ""}
+                          </p>
+                        </div>
+                      </div>
+
                       {!deleteMode && (
                         <button
                           type="button"
-                          onClick={(e) => marcarComoTomado(index, e)}
-                          className={`mr-2 rounded-full transition p-1 ${
-                            med.tomado ? "text-mint-500" : "text-plum-300 hover:text-mint-500"
-                          }`}
+                          onClick={(e) => { e.stopPropagation(); handleOpenForm(index); }}
+                          className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
+                          aria-label="Editar"
                         >
-                          <CheckCircle2 className="h-7 w-7" strokeWidth={med.tomado ? 2.8 : 1.8} />
+                          <Edit3 className="h-5 w-5" />
                         </button>
                       )}
-
-                      <div>
-                        <h3 className={`text-xl font-black leading-tight text-plum-800 ${med.tomado ? "line-through opacity-50" : ""}`}>
-                          {med.nombre}
-                        </h3>
-                        <p className="mt-1 text-sm font-semibold text-plum-500">
-                          {med.dosis} cada {med.frecuencia ? med.frecuencia.toLowerCase().replace("cada ", "") : ""}
-                        </p>
-                      </div>
                     </div>
-
-                    {/* Botón para abrir el formulario +editarMedicamento() */}
-                    {!deleteMode && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleOpenForm(index); }}
-                        className="p-2 rounded-full text-plum-400 hover:bg-plum-50 hover:text-lotus-500 transition"
-                        aria-label="Editar"
-                      >
-                        <Edit3 className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                ))
+                  ))}
+                </> 
               )}
             </div>
 
-            {/* Botón de ejecución para eliminación */}
             {deleteMode && checkedIds.length > 0 && (
               <div className="mt-8 flex justify-center">
                 <button
@@ -273,7 +264,6 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* VISTA: DETALLE DE MEDICAMENTO (+verDetalle) */}
         {currentView === "detail" && selectedMed && (
           <section className="mx-auto max-w-xl">
             <button
@@ -296,7 +286,9 @@ export default function Medicines() {
                 </div>
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Primera toma</span>
-                  <span className="font-medium text-plum-600">{selectedMed.primera_toma || "No especificada"}</span>
+                  <span className="font-medium text-plum-600">
+                    {selectedMed.primera_toma ? new Date(selectedMed.primera_toma).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "No especificada"}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-plum-50">
                   <span className="font-bold text-plum-700">Repetición</span>
@@ -305,9 +297,9 @@ export default function Medicines() {
                 <div className="flex justify-between py-2">
                   <span className="font-bold text-plum-700">Estado</span>
                   <span className={`font-black uppercase tracking-wide text-sm rounded-xl px-3 py-1 ${
-                    selectedMed.tomado ? "bg-mint-100 text-mint-500" : "bg-lotus-100 text-lotus-500"
+                    selectedMed?.tomado ? "bg-mint-100 text-mint-500" : "bg-lotus-100 text-lotus-500"
                   }`}>
-                    {selectedMed.tomado ? "Tomado" : "Pendiente"}
+                    {selectedMed?.tomado ? "Tomado" : "Pendiente"}
                   </span>
                 </div>
               </div>
@@ -325,7 +317,6 @@ export default function Medicines() {
           </section>
         )}
 
-        {/* FORMULARIO INTELIGENTE (Captura datos para pasárselos a +agregarMedicamento o +editarMedicamento) */}
         {currentView === "form" && (
           <section className="mx-auto max-w-xl">
             <button
@@ -410,7 +401,6 @@ export default function Medicines() {
 
       </main>
 
-      {/* Pop-up de confirmación para +eliminarMedicamento */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-plum-800/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-6 text-center shadow-soft ring-1 ring-plum-100 lg:p-8 animate-in fade-in zoom-in-95 duration-150">
